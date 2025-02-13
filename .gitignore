@@ -1,0 +1,8 @@
+# Environment file
+.env
+
+# Node modules directory
+node_modules/
+
+# Uploaded files directory
+public/uploads/
