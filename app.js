@@ -2,15 +2,27 @@ const express = require('express');
 const app = express();
 const routes = require('./routes');
 const { sequelize } = require('./models');
-var cors = require("cors")
-var path = require('path');
+const cors = require("cors");
+const path = require('path');
+
+// Configure CORS middleware
+const corsOptions = {
+  origin: '*', // Allow all origins for development (specify proper origin in production)
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+// Apply CORS middleware before other middleware
+app.use(cors(corsOptions));
 
 // Middleware setup
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Serve static files with CORS enabled
+app.use('/api/uploads', cors(corsOptions), express.static(path.join(__dirname, 'public/uploads')));
+
 // Use routes
-app.use('/api/uploads', express.static(path.join(__dirname, 'public/uploads')));
-app.use(cors());
 app.use('/api', routes);
 
 // Database connection
@@ -20,4 +32,4 @@ sequelize.authenticate().then(() => {
     console.error('Unable to connect to the database:', err);
 });
 
-module.exports = app; // Export the app instance
+module.exports = app;
