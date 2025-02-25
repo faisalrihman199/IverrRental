@@ -30,7 +30,10 @@ const User = sequelize.define("User", {
             isIn: [["user", "admin"]], 
         },
     },
-
+    image:{
+        type:DataTypes.TEXT,
+        allowNull: true,
+    }
 }, {
     timestamps: true, 
 });

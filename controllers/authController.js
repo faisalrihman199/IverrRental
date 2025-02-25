@@ -110,45 +110,43 @@ const authController = {
         }
     },
     updateUserInfo: async (req, res) => {
-        // Get user id from the middleware (req.user.id)
         const userId = req.user.id;
         try {
-            const user = await models.User.findByPk(userId);
-            if (!user) {
-                return res.status(404).json({ success: false, message: "User not found" });
+          const user = await models.User.findByPk(userId);
+          if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+          }
+          const { fullName, phone, password, oldPassword } = req.body;
+          if (fullName) {
+            user.fullName = fullName;
+          }
+          if (phone) {
+            user.phone = phone;
+          }
+          if (req.file) {
+            user.image = `/uploads/users/${req.file.filename}`
+          } else if (req.body.image) {
+            user.image = req.body.image;
+          }
+          if (password) {
+            if (!oldPassword) {
+              return res.status(400).json({ success: false, message: "Old password is required to update to a new password" });
             }
-
-            // Only update the fields provided in the request body
-            const { fullName, phone, password, oldPassword } = req.body;
-            // Update fullName if provided
-            if (fullName) {
-                user.fullName = fullName;
+            const isMatch = await bcrypt.compare(oldPassword, user.password);
+            if (!isMatch) {
+              return res.status(200).json({ success: false, message: "Old password is incorrect" });
             }
-            // Update mobile if provided (assuming field name is 'phone' in your User model)
-            if (phone) {
-                user.phone = phone;
-            }
-            // If new password is provided, validate the oldPassword first
-            if (password) {
-                if (!oldPassword) {
-                    return res.status(400).json({ success: false, message: "Old password is required to update to a new password" });
-                }
-                const isMatch = await bcrypt.compare(oldPassword, user.password);
-                if (!isMatch) {
-                    return res.status(200).json({ success: false, message: "Old password is incorrect" });
-                }
-                // Hash the new password and update
-                const hashedPassword = await bcrypt.hash(password, 10);
-                user.password = hashedPassword;
-            }
-            // Save the updated user
-            await user.save();
-            res.status(200).json({ success: true, message: "User info updated successfully", user });
+            const hashedPassword = await bcrypt.hash(password, 10);
+            user.password = hashedPassword;
+          }
+          
+          await user.save();
+          res.status(200).json({ success: true, message: "User info updated successfully", user });
         } catch (error) {
-            console.error("Error updating user info:", error);
-            res.status(500).json({ success: false, message: "Error updating user info" });
+          console.error("Error updating user info:", error);
+          res.status(500).json({ success: false, message: "Error updating user info" });
         }
-    },
+      },
     changeEmail: async (req, res) => {
         const { oldEmail, newEmail, newEmailOTP } = req.body;
 
