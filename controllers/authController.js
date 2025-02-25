@@ -24,7 +24,7 @@ const authController = {
 
             const hashedPassword = await bcrypt.hash(password, 10);
 
-            const user = await models.User.create({ email, password: hashedPassword,phone,fullName }, { transaction: t });
+            const user = await models.User.create({ email, password: hashedPassword, phone, fullName }, { transaction: t });
             await t.commit();
             res.status(201).json({ success: true, message: "Registration successful" });
         } catch (error) {
@@ -33,10 +33,6 @@ const authController = {
             res.status(500).json({ success: false, message: "Error while registration." });
         }
     },
-   
-    
-    
-
     login: async (req, res) => {
         const { email, password } = req.body;
         try {
@@ -63,7 +59,6 @@ const authController = {
             res.status(500).json({ success: false, message: "Error logging in." });
         }
     },
-
     verifyOtpForPasswordReset: async (req, res) => {
         const { email, otp, newPassword } = req.body;
 
@@ -85,7 +80,6 @@ const authController = {
             res.status(500).json({ success: false, message: "Error resetting password." });
         }
     },
-
     changePassword: async (req, res) => {
         const { currentPassword, newPassword } = req.body;
         const userId = req.user.id;
@@ -114,7 +108,84 @@ const authController = {
             console.error("Error updating password:", error);
             res.status(500).json({ success: false, message: "Error updating password" });
         }
+    },
+    updateUserInfo: async (req, res) => {
+        // Get user id from the middleware (req.user.id)
+        const userId = req.user.id;
+        try {
+            const user = await models.User.findByPk(userId);
+            if (!user) {
+                return res.status(404).json({ success: false, message: "User not found" });
+            }
+
+            // Only update the fields provided in the request body
+            const { fullName, phone, password, oldPassword } = req.body;
+            // Update fullName if provided
+            if (fullName) {
+                user.fullName = fullName;
+            }
+            // Update mobile if provided (assuming field name is 'phone' in your User model)
+            if (phone) {
+                user.phone = phone;
+            }
+            // If new password is provided, validate the oldPassword first
+            if (password) {
+                if (!oldPassword) {
+                    return res.status(400).json({ success: false, message: "Old password is required to update to a new password" });
+                }
+                const isMatch = await bcrypt.compare(oldPassword, user.password);
+                if (!isMatch) {
+                    return res.status(200).json({ success: false, message: "Old password is incorrect" });
+                }
+                // Hash the new password and update
+                const hashedPassword = await bcrypt.hash(password, 10);
+                user.password = hashedPassword;
+            }
+            // Save the updated user
+            await user.save();
+            res.status(200).json({ success: true, message: "User info updated successfully", user });
+        } catch (error) {
+            console.error("Error updating user info:", error);
+            res.status(500).json({ success: false, message: "Error updating user info" });
+        }
+    },
+    changeEmail: async (req, res) => {
+        const { oldEmail, newEmail, newEmailOTP } = req.body;
+    
+        // Verify OTP for the new email using your OTP controller
+        if (!otpController.verifyOTP(newEmailOTP, newEmail)) {
+            return res.status(400).json({ success: false, message: "OTP not correct for new email" });
+        }
+    
+        try {
+            const userId = req.user.id;
+            const user = await models.User.findByPk(userId);
+            if (!user) {
+                return res.status(404).json({ success: false, message: "User not found" });
+            }
+    
+            // Ensure that the user's current email matches the provided oldEmail
+            if (user.email !== oldEmail) {
+                return res.status(400).json({ success: false, message: "Old email does not match current email" });
+            }
+    
+            // Optional: Check if the new email is already taken by another user
+            const existingUser = await models.User.findOne({ where: { email: newEmail } });
+            if (existingUser) {
+                return res.status(400).json({ success: false, message: "New email already in use" });
+            }
+    
+            // Update the user's email
+            user.email = newEmail;
+            await user.save();
+    
+            return res.status(200).json({ success: true, message: "Email updated successfully", user });
+        } catch (error) {
+            console.error("Error in changeEmail:", error);
+            return res.status(500).json({ success: false, message: "Internal server error" });
+        }
     }
+    
 };
 
 module.exports = authController;
