@@ -7,16 +7,19 @@ const saveGalleryImage = async (req, res) => {
     try {
         const { id } = req.query;
         const { carTypeId } = req.body; // No title or description now
-        const file = req.file;
+        const files = req.files; // Using req.files for multiple image uploads
 
         if (!carTypeId) {
             return res.status(400).json({ success: false, message: "Car type ID is required." });
         }
-
-        let imagePath = null;
-        if (file) {
-            imagePath = `/uploads/gallery/${file.filename}`;
+        
+        if (!files || files.length === 0) {
+            return res.status(400).json({ success: false, message: "At least one image is required." });
         }
+        
+        // Build an array of image paths and convert to JSON string for storage
+        const imagePaths = files.map(file => `/uploads/gallery/${file.filename}`);
+        const imagesJson = JSON.stringify(imagePaths);
 
         // Validate carTypeId
         const carType = await CarType.findByPk(carTypeId);
@@ -26,30 +29,33 @@ const saveGalleryImage = async (req, res) => {
 
         let galleryImage;
         if (id) {
-            // Update existing gallery image
+            // Update existing gallery image record
             galleryImage = await Gallery.findByPk(id);
             if (!galleryImage) {
                 return res.status(404).json({ success: false, message: "Gallery image not found." });
             }
 
-            // Delete the old image file
+            // Delete old image files if they exist
             if (galleryImage.image) {
-                const oldImagePath = path.join(__dirname, `../public${galleryImage.image}`);
-                console.log(`Trying to delete: ${oldImagePath}`);
-
-                if (fs.existsSync(oldImagePath)) {
-                    fs.unlinkSync(oldImagePath);
-                    console.log("Old image deleted successfully.");
-                } else {
-                    console.log("Old image file not found.");
+                let oldImages;
+                try {
+                    oldImages = JSON.parse(galleryImage.image);
+                } catch (err) {
+                    oldImages = [];
                 }
+                oldImages.forEach(imgPath => {
+                    const fullImagePath = path.join(__dirname, `../public${imgPath}`);
+                    if (fs.existsSync(fullImagePath)) {
+                        fs.unlinkSync(fullImagePath);
+                    }
+                });
             }
 
-            await galleryImage.update({ carTypeId, image: imagePath });
+            await galleryImage.update({ carTypeId, image: imagesJson });
             return res.status(200).json({ success: true, message: "Gallery image updated successfully.", galleryImage });
         } else {
-            // Insert new gallery image
-            galleryImage = await Gallery.create({ carTypeId, image: imagePath });
+            // Insert new gallery image record
+            galleryImage = await Gallery.create({ carTypeId, image: imagesJson });
             return res.status(201).json({ success: true, message: "Gallery image created successfully.", galleryImage });
         }
     } catch (error) {
@@ -75,7 +81,7 @@ const getGalleryImages = async (req, res) => {
     }
 };
 
-// Delete Gallery Image and Remove Image File
+// Delete Gallery Image and Remove Image Files
 const deleteGalleryImage = async (req, res) => {
     try {
         const { id } = req.query;
@@ -88,17 +94,20 @@ const deleteGalleryImage = async (req, res) => {
             return res.status(404).json({ success: false, message: "Gallery image not found." });
         }
 
-        // Delete the image file
+        // Delete all associated image files
         if (galleryImage.image) {
-            const imagePath = path.join(__dirname, `../public${galleryImage.image}`);
-            console.log(`Trying to delete: ${imagePath}`);
-
-            if (fs.existsSync(imagePath)) {
-                fs.unlinkSync(imagePath);
-                console.log("Image deleted successfully.");
-            } else {
-                console.log("Image file not found.");
+            let imageArray;
+            try {
+                imageArray = JSON.parse(galleryImage.image);
+            } catch (err) {
+                imageArray = [];
             }
+            imageArray.forEach(imgPath => {
+                const fullImagePath = path.join(__dirname, `../public${imgPath}`);
+                if (fs.existsSync(fullImagePath)) {
+                    fs.unlinkSync(fullImagePath);
+                }
+            });
         }
 
         await galleryImage.destroy(); // Soft delete if paranoid mode is enabled

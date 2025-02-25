@@ -6,7 +6,7 @@ var upload = require('../middleware/multerConfig');
 const controllers = require('../controllers/index');
 
 // Save or Update Gallery Image (if id is provided, update)
-router.post("/save", adminAuth, upload("gallery").single("image"), controllers.gallery.saveGalleryImage);
+router.post("/save", adminAuth, upload("gallery").array("image", 10), controllers.gallery.saveGalleryImage);
 
 // Get All Gallery Images
 router.get("/", auth, controllers.gallery.getGalleryImages);
