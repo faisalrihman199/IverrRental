@@ -42,16 +42,17 @@ const authController = {
         try {
             const user = await models.User.findOne({ where: { email } });
             if (!user) {
-                return res.status(401).json({ success: false, message: "User not found" });
+                return res.status(200).json({ success: false, message: "User not found" });
             }
 
             const isPasswordValid = await bcrypt.compare(password, user.password);
             if (!isPasswordValid) {
-                return res.status(401).json({ success: false, message: "Invalid password" });
+                return res.status(200).json({ success: false, message: "Invalid password" });
             }
             const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_KEY);
             res.status(200).json({
                 success: true,
+                message: "Login successful",
                 data: {
                     role: user.role,
                     token
