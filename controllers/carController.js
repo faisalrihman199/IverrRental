@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { Car, User, CarType, CarBrand, City, sequelize } = require('../models'); // Ensure sequelize is exported
+const { Car, User,Facility, CarType, CarBrand, City, sequelize } = require('../models'); // Ensure sequelize is exported
 
 const saveCar = async (req, res) => {
     // Start a transaction
@@ -223,8 +223,30 @@ const deleteCar = async (req, res) => {
     }
 };
 
+const getOptions = async (req, res) => {
+    try {
+        const cities = await City.findAll({ attributes: ['id', 'name'] });
+        const carTypes = await CarType.findAll({ attributes: ['id', 'title'] });
+        const carBrands = await CarBrand.findAll({ attributes: ['id', 'title'] });
+        const facilities = await Facility.findAll({ attributes: ['id', 'name'] });
+
+        return res.status(200).json({
+            success: true,
+            options: {
+                cities,
+                carTypes,
+                carBrands,
+                facilities
+            }
+        });
+    } catch (error) {
+        console.error("Error in getOptions:", error);
+        return res.status(500).json({ success: false, message: "Internal server error." });
+    }
+};
 module.exports = {
     saveCar,
     getCars,
-    deleteCar
+    deleteCar,
+    getOptions
 };

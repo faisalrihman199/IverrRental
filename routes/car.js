@@ -8,6 +8,7 @@ const auth = require("../middleware/authMiddleware");
 router.post("/save", auth, upload("cars").array("images", 10), controllers.car.saveCar);
 // Get all cars
 router.get("/", auth, controllers.car.getCars);
+router.get("/options", auth, controllers.car.getOptions);
 
 // Delete a car
 router.delete("/delete", auth, controllers.car.deleteCar);

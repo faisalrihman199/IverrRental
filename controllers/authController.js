@@ -151,41 +151,56 @@ const authController = {
     },
     changeEmail: async (req, res) => {
         const { oldEmail, newEmail, newEmailOTP } = req.body;
-    
+
         // Verify OTP for the new email using your OTP controller
         if (!otpController.verifyOTP(newEmailOTP, newEmail)) {
             return res.status(400).json({ success: false, message: "OTP not correct for new email" });
         }
-    
+
         try {
             const userId = req.user.id;
             const user = await models.User.findByPk(userId);
             if (!user) {
                 return res.status(404).json({ success: false, message: "User not found" });
             }
-    
+
             // Ensure that the user's current email matches the provided oldEmail
             if (user.email !== oldEmail) {
                 return res.status(400).json({ success: false, message: "Old email does not match current email" });
             }
-    
+
             // Optional: Check if the new email is already taken by another user
             const existingUser = await models.User.findOne({ where: { email: newEmail } });
             if (existingUser) {
                 return res.status(400).json({ success: false, message: "New email already in use" });
             }
-    
+
             // Update the user's email
             user.email = newEmail;
             await user.save();
-    
+
             return res.status(200).json({ success: true, message: "Email updated successfully", user });
         } catch (error) {
             console.error("Error in changeEmail:", error);
             return res.status(500).json({ success: false, message: "Internal server error" });
         }
+    },
+    userInfo: async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const user = await models.User.findByPk(userId, {
+                attributes: ['fullName', 'email', 'phone']
+              }); 
+            if (!user) {
+                return res.status(404).json({ success: false, message: "User not found" })
+            }
+            return res.status(200).json({ success: true,data:user, message: "User info retrieved successfully" });
+        } catch (error) {
+            console.error("Error in userInfo:", error);
+            return res.status(500).json({ success: false, message: "Internal server error" });
+        }
     }
-    
-};
 
-module.exports = authController;
+    }
+
+    module.exports = authController;

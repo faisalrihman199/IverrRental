@@ -6,8 +6,9 @@ const authenticateToken = require('../middleware/authMiddleware');
 router.post('/login', controllers.auth.login);
 router.post('/register', controllers.auth.register);
 router.post('/forgotPassword', controllers.auth.verifyOtpForPasswordReset);
-router.patch('/changePassword', authenticateToken,controllers.auth.changePassword);
-router.patch('/update', authenticateToken,controllers.auth.updateUserInfo);
-router.patch('/changeEmail', authenticateToken,controllers.auth.changeEmail);
+router.post('/changePassword', authenticateToken,controllers.auth.changePassword);
+router.get('/info', authenticateToken,controllers.auth.userInfo);
+router.post('/update', authenticateToken,controllers.auth.updateUserInfo);
+router.post('/changeEmail', authenticateToken,controllers.auth.changeEmail);
 
 module.exports = router
