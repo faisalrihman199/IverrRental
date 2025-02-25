@@ -10,7 +10,7 @@ const saveCoupon = async (req, res) => {
         const file = req.file;
 
         if (!file) {
-            return res.status(400).json({ message: "Image file is required." });
+            return res.status(400).json({ success: false, message: "Image file is required." });
         }
 
         const imagePath = `/uploads/coupons/${file.filename}`;
@@ -20,7 +20,7 @@ const saveCoupon = async (req, res) => {
             // Update existing coupon
             coupon = await Coupon.findByPk(id);
             if (!coupon) {
-                return res.status(404).json({ message: "Coupon not found." });
+                return res.status(404).json({ success: false, message: "Coupon not found." });
             }
 
             // Delete the old image file
@@ -39,15 +39,15 @@ const saveCoupon = async (req, res) => {
             }
 
             await coupon.update({ expiry, code, title, subtitle, status, minValue, value, description, image: imagePath });
-            return res.status(200).json({ message: "Coupon updated successfully.", coupon });
+            return res.status(200).json({ success: true, message: "Coupon updated successfully.", coupon });
         } else {
             // Insert new coupon
             coupon = await Coupon.create({ expiry, code, title, subtitle, status, minValue, value, description, image: imagePath });
-            return res.status(201).json({ message: "Coupon created successfully.", coupon });
+            return res.status(201).json({ success: true, message: "Coupon created successfully.", coupon });
         }
     } catch (error) {
         console.error("Error in saveCoupon:", error);
-        return res.status(500).json({ message: "Internal server error." });
+        return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
 
@@ -61,10 +61,10 @@ const getCoupons = async (req, res) => {
         if (status) whereClause.status = status;
 
         const coupons = await Coupon.findAll({ where: whereClause, order: [["createdAt", "DESC"]] });
-        return res.status(200).json({ coupons });
+        return res.status(200).json({ success: true, coupons });
     } catch (error) {
         console.error("Error in getCoupons:", error);
-        return res.status(500).json({ message: "Internal server error." });
+        return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
 
@@ -73,12 +73,12 @@ const deleteCoupon = async (req, res) => {
     try {
         const { id } = req.query;
         if (!id) {
-            return res.status(400).json({ message: "Coupon ID is required." });
+            return res.status(400).json({ success: false, message: "Coupon ID is required." });
         }
 
         const coupon = await Coupon.findByPk(id);
         if (!coupon) {
-            return res.status(404).json({ message: "Coupon not found." });
+            return res.status(404).json({ success: false, message: "Coupon not found." });
         }
 
         // Delete the image file
@@ -97,10 +97,10 @@ const deleteCoupon = async (req, res) => {
         }
 
         await coupon.destroy();
-        return res.status(200).json({ message: "Coupon deleted successfully." });
+        return res.status(200).json({ success: true, message: "Coupon deleted successfully." });
     } catch (error) {
         console.error("Error in deleteCoupon:", error);
-        return res.status(500).json({ message: "Internal server error." });
+        return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
 

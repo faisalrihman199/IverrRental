@@ -5,8 +5,7 @@ const controllers = require("../controllers/index");
 const auth = require("../middleware/authMiddleware");
 
 // Save or Update Car (if id is provided, update)
-router.post("/save", auth, upload("cars").single("image"), controllers.car.saveCar);
-
+router.post("/save", auth, upload("cars").array("images", 10), controllers.car.saveCar);
 // Get all cars
 router.get("/", auth, controllers.car.getCars);
 

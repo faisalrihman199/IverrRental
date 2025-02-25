@@ -10,7 +10,7 @@ const saveBanner = async (req, res) => {
         const file = req.file;
 
         if (!file) {
-            return res.status(400).json({ message: "Image file is required." });
+            return res.status(400).json({ success: false, message: "Image file is required." });
         }
 
         const imagePath = `/uploads/banners/${file.filename}`;
@@ -20,7 +20,7 @@ const saveBanner = async (req, res) => {
             // Update existing banner
             banner = await Banner.findByPk(id);
             if (!banner) {
-                return res.status(404).json({ message: "Banner not found." });
+                return res.status(404).json({ success: false, message: "Banner not found." });
             }
 
             // Delete the old image file
@@ -39,17 +39,18 @@ const saveBanner = async (req, res) => {
             }
 
             await banner.update({ image: imagePath, status });
-            return res.status(200).json({ message: "Banner updated successfully.", banner });
+            return res.status(200).json({ success: true, message: "Banner updated successfully.", banner });
         } else {
             // Insert new banner
             banner = await Banner.create({ image: imagePath, status });
-            return res.status(201).json({ message: "Banner created successfully.", banner });
+            return res.status(201).json({ success: true, message: "Banner created successfully.", banner });
         }
     } catch (error) {
         console.error("Error in saveBanner:", error);
-        return res.status(500).json({ message: "Internal server error." });
+        return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
+
 const getBanners = async (req, res) => {
     try {
         const { id, status } = req.query;
@@ -59,25 +60,24 @@ const getBanners = async (req, res) => {
         if (status) whereClause.status = status;
 
         const banners = await Banner.findAll({ where: whereClause });
-        return res.status(200).json({ banners });
+        return res.status(200).json({ success: true, banners });
     } catch (error) {
         console.error("Error in getBanners:", error);
-        return res.status(500).json({ message: "Internal server error." });
+        return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
-
 
 // Delete Banner and Remove Image File
 const deleteBanner = async (req, res) => {
     try {
         const { id } = req.query;
         if (!id) {
-            return res.status(400).json({ message: "Banner ID is required." });
+            return res.status(400).json({ success: false, message: "Banner ID is required." });
         }
 
         const banner = await Banner.findByPk(id);
         if (!banner) {
-            return res.status(404).json({ message: "Banner not found." });
+            return res.status(404).json({ success: false, message: "Banner not found." });
         }
 
         // Delete the image file
@@ -96,10 +96,10 @@ const deleteBanner = async (req, res) => {
         }
 
         await banner.destroy(); // Soft delete if paranoid mode is enabled
-        return res.status(200).json({ message: "Banner deleted successfully." });
+        return res.status(200).json({ success: true, message: "Banner deleted successfully." });
     } catch (error) {
         console.error("Error in deleteBanner:", error);
-        return res.status(500).json({ message: "Internal server error." });
+        return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
 

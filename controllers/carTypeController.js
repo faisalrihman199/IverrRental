@@ -40,15 +40,15 @@ const saveCarType = async (req, res) => {
             }
 
             await carType.update({ title, image: imagePath, status });  // Changed name to title
-            return res.status(200).json({ message: "Car type updated successfully.", carType });
+            return res.status(200).json({success:true, message: "Car type updated successfully.", carType });
         } else {
             // Insert new car type
             carType = await CarType.create({ title, image: imagePath, status });  // Changed name to title
-            return res.status(201).json({ message: "Car type created successfully.", carType });
+            return res.status(201).json({success:true, message: "Car type created successfully.", carType });
         }
     } catch (error) {
         console.error("Error in saveCarType:", error);
-        return res.status(500).json({ message: "Internal server error." });
+        return res.status(500).json({success:false, message: "Internal server error." });
     }
 };
 

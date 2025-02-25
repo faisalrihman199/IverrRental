@@ -10,7 +10,7 @@ const saveFacility = async (req, res) => {
         const file = req.file;
 
         if (!name) {
-            return res.status(400).json({ message: "Facility name is required." });
+            return res.status(400).json({ success: false, message: "Facility name is required." });
         }
 
         let imagePath = null;
@@ -23,7 +23,7 @@ const saveFacility = async (req, res) => {
             // Update existing facility
             facility = await Facility.findByPk(id);
             if (!facility) {
-                return res.status(404).json({ message: "Facility not found." });
+                return res.status(404).json({ success: false, message: "Facility not found." });
             }
 
             // Delete old image if new image is provided
@@ -35,15 +35,15 @@ const saveFacility = async (req, res) => {
             }
 
             await facility.update({ name, image: imagePath || facility.image, status });
-            return res.status(200).json({ message: "Facility updated successfully.", facility });
+            return res.status(200).json({ success: true, message: "Facility updated successfully.", facility });
         } else {
             // Insert new facility
             facility = await Facility.create({ name, image: imagePath, status });
-            return res.status(201).json({ message: "Facility created successfully.", facility });
+            return res.status(201).json({ success: true, message: "Facility created successfully.", facility });
         }
     } catch (error) {
         console.error("Error in saveFacility:", error);
-        return res.status(500).json({ message: "Internal server error." });
+        return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
 
@@ -57,10 +57,10 @@ const getFacilities = async (req, res) => {
         if (status) whereClause.status = status;
 
         const facilities = await Facility.findAll({ where: whereClause });
-        return res.status(200).json({ facilities });
+        return res.status(200).json({ success: true, facilities });
     } catch (error) {
         console.error("Error in getFacilities:", error);
-        return res.status(500).json({ message: "Internal server error." });
+        return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
 
@@ -69,12 +69,12 @@ const deleteFacility = async (req, res) => {
     try {
         const { id } = req.query;
         if (!id) {
-            return res.status(400).json({ message: "Facility ID is required." });
+            return res.status(400).json({ success: false, message: "Facility ID is required." });
         }
 
         const facility = await Facility.findByPk(id);
         if (!facility) {
-            return res.status(404).json({ message: "Facility not found." });
+            return res.status(404).json({ success: false, message: "Facility not found." });
         }
 
         // Delete the image file
@@ -86,10 +86,10 @@ const deleteFacility = async (req, res) => {
         }
 
         await facility.destroy();
-        return res.status(200).json({ message: "Facility deleted successfully." });
+        return res.status(200).json({ success: true, message: "Facility deleted successfully." });
     } catch (error) {
         console.error("Error in deleteFacility:", error);
-        return res.status(500).json({ message: "Internal server error." });
+        return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
 

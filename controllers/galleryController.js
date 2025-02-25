@@ -10,7 +10,7 @@ const saveGalleryImage = async (req, res) => {
         const file = req.file;
 
         if (!carTypeId) {
-            return res.status(400).json({ message: "Car type ID is required." });
+            return res.status(400).json({ success: false, message: "Car type ID is required." });
         }
 
         let imagePath = null;
@@ -21,7 +21,7 @@ const saveGalleryImage = async (req, res) => {
         // Validate carTypeId
         const carType = await CarType.findByPk(carTypeId);
         if (!carType) {
-            return res.status(404).json({ message: "Car type not found." });
+            return res.status(404).json({ success: false, message: "Car type not found." });
         }
 
         let galleryImage;
@@ -29,7 +29,7 @@ const saveGalleryImage = async (req, res) => {
             // Update existing gallery image
             galleryImage = await Gallery.findByPk(id);
             if (!galleryImage) {
-                return res.status(404).json({ message: "Gallery image not found." });
+                return res.status(404).json({ success: false, message: "Gallery image not found." });
             }
 
             // Delete the old image file
@@ -46,15 +46,15 @@ const saveGalleryImage = async (req, res) => {
             }
 
             await galleryImage.update({ carTypeId, image: imagePath });
-            return res.status(200).json({ message: "Gallery image updated successfully.", galleryImage });
+            return res.status(200).json({ success: true, message: "Gallery image updated successfully.", galleryImage });
         } else {
             // Insert new gallery image
             galleryImage = await Gallery.create({ carTypeId, image: imagePath });
-            return res.status(201).json({ message: "Gallery image created successfully.", galleryImage });
+            return res.status(201).json({ success: true, message: "Gallery image created successfully.", galleryImage });
         }
     } catch (error) {
         console.error("Error in saveGalleryImage:", error);
-        return res.status(500).json({ message: "Internal server error." });
+        return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
 
@@ -68,10 +68,10 @@ const getGalleryImages = async (req, res) => {
         if (carTypeId) whereClause.carTypeId = carTypeId;
 
         const galleryImages = await Gallery.findAll({ where: whereClause });
-        return res.status(200).json({ galleryImages });
+        return res.status(200).json({ success: true, galleryImages });
     } catch (error) {
         console.error("Error in getGalleryImages:", error);
-        return res.status(500).json({ message: "Internal server error." });
+        return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
 
@@ -80,12 +80,12 @@ const deleteGalleryImage = async (req, res) => {
     try {
         const { id } = req.query;
         if (!id) {
-            return res.status(400).json({ message: "Gallery image ID is required." });
+            return res.status(400).json({ success: false, message: "Gallery image ID is required." });
         }
 
         const galleryImage = await Gallery.findByPk(id);
         if (!galleryImage) {
-            return res.status(404).json({ message: "Gallery image not found." });
+            return res.status(404).json({ success: false, message: "Gallery image not found." });
         }
 
         // Delete the image file
@@ -102,10 +102,10 @@ const deleteGalleryImage = async (req, res) => {
         }
 
         await galleryImage.destroy(); // Soft delete if paranoid mode is enabled
-        return res.status(200).json({ message: "Gallery image deleted successfully." });
+        return res.status(200).json({ success: true, message: "Gallery image deleted successfully." });
     } catch (error) {
         console.error("Error in deleteGalleryImage:", error);
-        return res.status(500).json({ message: "Internal server error." });
+        return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
 

@@ -10,7 +10,7 @@ const saveCarBrand = async (req, res) => {
         const file = req.file;
 
         if (!title) {
-            return res.status(400).json({ message: "Car brand title is required." });
+            return res.status(400).json({ success: false, message: "Car brand title is required." });
         }
 
         let imagePath = null;
@@ -23,7 +23,7 @@ const saveCarBrand = async (req, res) => {
             // Update existing car brand
             carBrand = await CarBrand.findByPk(id);
             if (!carBrand) {
-                return res.status(404).json({ message: "Car brand not found." });
+                return res.status(404).json({ success: false, message: "Car brand not found." });
             }
 
             // Delete the old image file
@@ -40,15 +40,15 @@ const saveCarBrand = async (req, res) => {
             }
 
             await carBrand.update({ title, image: imagePath, status });
-            return res.status(200).json({ message: "Car brand updated successfully.", carBrand });
+            return res.status(200).json({ success: true, message: "Car brand updated successfully.", carBrand });
         } else {
             // Insert new car brand
             carBrand = await CarBrand.create({ title, image: imagePath, status });
-            return res.status(201).json({ message: "Car brand created successfully.", carBrand });
+            return res.status(201).json({ success: true, message: "Car brand created successfully.", carBrand });
         }
     } catch (error) {
         console.error("Error in saveCarBrand:", error);
-        return res.status(500).json({ message: "Internal server error." });
+        return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
 
@@ -62,10 +62,10 @@ const getCarBrands = async (req, res) => {
         if (status) whereClause.status = status;
 
         const carBrands = await CarBrand.findAll({ where: whereClause });
-        return res.status(200).json({ carBrands });
+        return res.status(200).json({ success: true, carBrands });
     } catch (error) {
         console.error("Error in getCarBrands:", error);
-        return res.status(500).json({ message: "Internal server error." });
+        return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
 
@@ -74,12 +74,12 @@ const deleteCarBrand = async (req, res) => {
     try {
         const { id } = req.query;
         if (!id) {
-            return res.status(400).json({ message: "Car brand ID is required." });
+            return res.status(400).json({ success: false, message: "Car brand ID is required." });
         }
 
         const carBrand = await CarBrand.findByPk(id);
         if (!carBrand) {
-            return res.status(404).json({ message: "Car brand not found." });
+            return res.status(404).json({ success: false, message: "Car brand not found." });
         }
 
         // Delete the image file
@@ -96,10 +96,10 @@ const deleteCarBrand = async (req, res) => {
         }
 
         await carBrand.destroy(); // Soft delete if paranoid mode is enabled
-        return res.status(200).json({ message: "Car brand deleted successfully." });
+        return res.status(200).json({ success: true, message: "Car brand deleted successfully." });
     } catch (error) {
         console.error("Error in deleteCarBrand:", error);
-        return res.status(500).json({ message: "Internal server error." });
+        return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
 
