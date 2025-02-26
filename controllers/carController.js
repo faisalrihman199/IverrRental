@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { Car, User, Facility, CarType, CarBrand, City, sequelize } = require('../models');
+const { Car, User,Gallery, Facility, CarType, CarBrand, City, sequelize } = require('../models');
 
 const saveCar = async (req, res) => {
   const t = await sequelize.transaction();
@@ -163,44 +163,66 @@ const saveCar = async (req, res) => {
 };
 
 const getCars = async (req, res) => {
-  try {
-    const { id, status, carTypeId, carBrandId, carCityId } = req.query;
-    const userId = req.user.id;
-    let whereClause = {};
-    if (id) whereClause.id = id;
-    if (status) whereClause.status = status;
-    if (carTypeId) whereClause.carTypeId = carTypeId;
-    if (carBrandId) whereClause.carBrandId = carBrandId;
-    if (carCityId) whereClause.carCityId = carCityId;
-    
-    const cars = await Car.findAll({
-      where: whereClause,
-      include: [
-        { model: CarType },
-        { model: CarBrand },
-        { model: City },
-        { model: Facility }
-      ]
-    });
-    
-    const parsedCars = cars.map(car => {
-      const carObj = car.toJSON();
-      if (carObj.image) {
-        try {
-          carObj.image = JSON.parse(carObj.image);
-        } catch (err) {
-          carObj.image = [];
+    try {
+      const { id, status, carTypeId, carBrandId, carCityId } = req.query;
+      const userId = req.user.id;
+      let whereClause = {};
+      if (id) whereClause.id = id;
+      if (status) whereClause.status = status;
+      if (carTypeId) whereClause.carTypeId = carTypeId;
+      if (carBrandId) whereClause.carBrandId = carBrandId;
+      if (carCityId) whereClause.carCityId = carCityId;
+      
+      const cars = await Car.findAll({
+        where: whereClause,
+        include: [
+          { model: CarType },
+          { model: CarBrand },
+          { model: City },
+          { model: Facility },
+          { model: Gallery } // Added to fetch gallery images
+        ]
+      });
+      
+      const parsedCars = cars.map(car => {
+        const carObj = car.toJSON();
+        let carImages = [];
+        let galleryImages = [];
+        
+        // Parse images from car.image if available
+        if (carObj.image) {
+          try {
+            carImages = JSON.parse(carObj.image);
+          } catch (err) {
+            carImages = [];
+          }
         }
-      }
-      return carObj;
-    });
-    
-    return res.status(200).json({ success: true, cars: parsedCars });
-  } catch (error) {
-    console.error("Error in getCars:", error);
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
+        
+        // Parse images from gallery.image if available
+        if (carObj.Gallery && carObj.Gallery.image) {
+          try {
+            galleryImages = JSON.parse(carObj.Gallery.image);
+          } catch (err) {
+            galleryImages = [];
+          }
+        }
+        
+        // Combine both arrays and bind to car.image
+        carObj.image = [...carImages, ...galleryImages];
+        
+        // Optionally, remove Gallery property if not needed in the response
+        delete carObj.Gallery;
+        
+        return carObj;
+      });
+      
+      return res.status(200).json({ success: true, cars: parsedCars });
+    } catch (error) {
+      console.error("Error in getCars:", error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  };
+  
 
 const deleteCar = async (req, res) => {
   try {

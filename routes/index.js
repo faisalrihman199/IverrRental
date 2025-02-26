@@ -13,6 +13,7 @@ var faq = require("./faq");
 var facility = require("./facility");
 var coupon = require("./coupon"); 
 var car = require("./car"); 
+var favouriteCars = require("./favouritecars"); 
 
 router.get('/', function(req, res, next) {
   res.send("Iverr Project is running");
@@ -30,5 +31,6 @@ router.use("/faq", faq);
 router.use("/facility", facility);
 router.use("/coupon", coupon); 
 router.use("/car", car); 
+router.use("/favouritecars", favouriteCars); 
 
 module.exports = router;

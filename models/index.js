@@ -12,6 +12,7 @@ const Facility = require('./facility');
 const Coupon = require('./coupon');
 const Gallery = require('./gallery');
 const Car = require('./car');
+const FavouritesCar = require('./FavouritesCar'); // Import the explicit FavouritesCar model
 
 const models = {
     User,
@@ -24,6 +25,7 @@ const models = {
     Coupon,
     Gallery,
     Car,
+    FavouritesCar
 };
 
 // Define relationships
@@ -52,6 +54,11 @@ Car.belongsTo(City, { foreignKey: 'carCityId' });
 // Many-to-Many: Car ↔ Facility (Automatically creates a junction table)
 Car.belongsToMany(Facility, { through: 'CarFacilities', foreignKey: 'carId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 Facility.belongsToMany(Car, { through: 'CarFacilities', foreignKey: 'facilityId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+FavouritesCar.belongsTo(User, { foreignKey: 'userId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+FavouritesCar.belongsTo(Car, { foreignKey: 'carId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+
 
 // Sync database
 sequelize.sync({ alter: true }).then(() => {
