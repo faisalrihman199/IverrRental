@@ -6,11 +6,11 @@ const Gallery = sequelize.define("Gallery", {
         type:DataTypes.TEXT,
         allowNull: false,
     },
-    carTypeId: {
+    carId: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'CarTypes', // Name of the referenced table
+            model: 'Cars', // Name of the referenced table
             key: 'id', // Primary key in the referenced table
         },
         onUpdate: 'CASCADE', // Updates foreign key on referenced table changes

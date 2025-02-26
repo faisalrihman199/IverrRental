@@ -7,11 +7,13 @@ const controllers = require('../controllers/index');
 
 // Save or Update Gallery Image (if id is provided, update)
 router.post("/save", adminAuth, upload("gallery").array("image", 10), controllers.gallery.saveGalleryImage);
+router.post("/add_images", auth, upload("gallery").array("image", 10), controllers.gallery.addGalleryImages);
 
 // Get All Gallery Images
 router.get("/", auth, controllers.gallery.getGalleryImages);
 
 // Delete Gallery Image
 router.delete("/delete", adminAuth, controllers.gallery.deleteGalleryImage);
+router.delete("/remove_image", auth, controllers.gallery.removeGalleryImage);
 
 module.exports = router;

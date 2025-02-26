@@ -32,8 +32,8 @@ const models = {
 User.hasMany(Car, { foreignKey: 'userId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 Car.belongsTo(User, { foreignKey: 'userId' });
 // One-to-One: CarType ↔ Gallery
-CarType.hasOne(Gallery, { foreignKey: 'carTypeId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
-Gallery.belongsTo(CarType, { foreignKey: 'carTypeId' });
+Car.hasOne(Gallery, { foreignKey: 'carId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+Gallery.belongsTo(Car, { foreignKey: 'carId' });
 
 // One-to-Many: Car ↔ CarType
 CarType.hasMany(Car, { foreignKey: 'carTypeId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
