@@ -159,30 +159,45 @@ const saveCar = async (req, res) => {
 };
 
 const getCars = async (req, res) => {
-  try {
-    const { id, status, carTypeId, carBrandId, carCityId } = req.query;
-    const userId = req.user.id;
-    let whereClause = {};
-    if (id) whereClause.id = id;
-    if (status) whereClause.status = status;
-    if (carTypeId) whereClause.carTypeId = carTypeId;
-    if (carBrandId) whereClause.carBrandId = carBrandId;
-    if (carCityId) whereClause.carCityId = carCityId;
-    const cars = await Car.findAll({
-      where: whereClause,
-      include: [
-        { model: CarType },
-        { model: CarBrand },
-        { model: City },
-        { model: Facility }
-      ]
-    });
-    return res.status(200).json({ success: true, cars });
-  } catch (error) {
-    console.error("Error in getCars:", error);
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
+    try {
+      const { id, status, carTypeId, carBrandId, carCityId } = req.query;
+      const userId = req.user.id;
+      let whereClause = {};
+      if (id) whereClause.id = id;
+      if (status) whereClause.status = status;
+      if (carTypeId) whereClause.carTypeId = carTypeId;
+      if (carBrandId) whereClause.carBrandId = carBrandId;
+      if (carCityId) whereClause.carCityId = carCityId;
+  
+      const cars = await Car.findAll({
+        where: whereClause,
+        include: [
+          { model: CarType },
+          { model: CarBrand },
+          { model: City },
+          { model: Facility }
+        ]
+      });
+  
+      const parsedCars = cars.map(car => {
+        const carObj = car.toJSON();
+        if (carObj.image) {
+          try {
+            carObj.image = JSON.parse(carObj.image);
+          } catch (err) {
+            carObj.image = [];
+          }
+        }
+        return carObj;
+      });
+  
+      return res.status(200).json({ success: true, cars: parsedCars });
+    } catch (error) {
+      console.error("Error in getCars:", error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  };
+  
 
 const deleteCar = async (req, res) => {
   try {
