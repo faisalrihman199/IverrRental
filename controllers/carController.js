@@ -180,7 +180,8 @@ const getCars = async (req, res) => {
           { model: CarBrand },
           { model: City },
           { model: Facility },
-          { model: Gallery } // Added to fetch gallery images
+          { model: Gallery },
+          { model: User },
         ]
       });
       
@@ -198,7 +199,7 @@ const getCars = async (req, res) => {
           }
         }
         
-        // Parse images from gallery.image if available
+        // Parse images from Gallery.image if available
         if (carObj.Gallery && carObj.Gallery.image) {
           try {
             galleryImages = JSON.parse(carObj.Gallery.image);
@@ -207,11 +208,20 @@ const getCars = async (req, res) => {
           }
         }
         
-        // Combine both arrays and bind to car.image
-        carObj.image = [...carImages, ...galleryImages];
+        // Combine both arrays
+        const combinedImages = [...carImages, ...galleryImages];
         
-        // Optionally, remove Gallery property if not needed in the response
+        // Set keys as required:
+        // 1. "images" will hold the entire array of images.
+        carObj.images = combinedImages;
+        // 2. "image" will hold the first image from the combined array (if any).
+        carObj.image = combinedImages.length > 0 ? combinedImages[0] : null;
+        // 3. "owner" will be set as user.fullName (from the included User model).
+        carObj.owner = carObj.User ? carObj.User.fullName : null;
+        
+        // Optionally remove the Gallery and User properties from the response.
         delete carObj.Gallery;
+        delete carObj.User;
         
         return carObj;
       });
@@ -222,6 +232,7 @@ const getCars = async (req, res) => {
       return res.status(500).json({ success: false, message: error.message });
     }
   };
+  
   
 
 const deleteCar = async (req, res) => {
