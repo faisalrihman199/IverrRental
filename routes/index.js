@@ -13,6 +13,8 @@ var faq = require("./faq");
 var facility = require("./facility");
 var coupon = require("./coupon"); 
 var car = require("./car"); 
+var page = require("./page"); 
+var booking = require("./booking"); 
 var favouriteCars = require("./favouritecars"); 
 
 router.get('/', function(req, res, next) {
@@ -31,6 +33,8 @@ router.use("/faq", faq);
 router.use("/facility", facility);
 router.use("/coupon", coupon); 
 router.use("/car", car); 
+router.use("/page", page); 
+router.use("/booking", booking); 
 router.use("/favouritecars", favouriteCars); 
 
 module.exports = router;

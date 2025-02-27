@@ -12,6 +12,8 @@ const Facility = require('./facility');
 const Coupon = require('./coupon');
 const Gallery = require('./gallery');
 const Car = require('./car');
+const Page = require('./page');
+const Booking = require('./booking');
 const FavouritesCar = require('./FavouritesCar'); // Import the explicit FavouritesCar model
 
 const models = {
@@ -25,6 +27,8 @@ const models = {
     Coupon,
     Gallery,
     Car,
+    Page,
+    Booking,
     FavouritesCar
 };
 
@@ -57,6 +61,9 @@ Facility.belongsToMany(Car, { through: 'CarFacilities', foreignKey: 'facilityId'
 
 FavouritesCar.belongsTo(User, { foreignKey: 'userId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 FavouritesCar.belongsTo(Car, { foreignKey: 'carId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+Booking.belongsTo(User, { foreignKey: 'userId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+Booking.belongsTo(Car, { foreignKey: 'carId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 
 
 

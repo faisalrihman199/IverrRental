@@ -10,7 +10,9 @@ const faq = require("./faqController")
 const facility = require("./facilityController")
 const coupon = require("./couponController")
 const car = require("./carController")
+const page = require("./pageController")
+const booking = require("./bookingController")
 const  favouriteCars= require("./favouritesCarController")
-const controllers = {admin,auth,otp,banner,city, carType,carBrand,gallery,faq,facility,coupon,car,favouriteCars}
+const controllers = {admin,auth,otp,banner,city, carType,carBrand,gallery,faq,facility,coupon,car,favouriteCars, page,booking}
 
 module.exports = controllers
