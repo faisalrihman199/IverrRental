@@ -61,7 +61,7 @@ const getCoupons = async (req, res) => {
         if (status) whereClause.status = status;
 
         const coupons = await Coupon.findAll({ where: whereClause, order: [["createdAt", "DESC"]] });
-        return res.status(200).json({ success: true, coupons });
+        return res.status(200).json({ success: true, data:coupons });
     } catch (error) {
         console.error("Error in getCoupons:", error);
         return res.status(500).json({ success: false, message: "Internal server error." });

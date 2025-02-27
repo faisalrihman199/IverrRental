@@ -41,7 +41,7 @@ const getFAQs = async (req, res) => {
         if (status) whereClause.status = status;
 
         const faqs = await FAQ.findAll({ where: whereClause });
-        return res.status(200).json({ success: true, faqs });
+        return res.status(200).json({ success: true, data:faqs });
     } catch (error) {
         console.error("Error in getFAQs:", error);
         return res.status(500).json({ success: false, message: "Internal server error." });

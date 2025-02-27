@@ -60,7 +60,7 @@ const getBanners = async (req, res) => {
         if (status) whereClause.status = status;
 
         const banners = await Banner.findAll({ where: whereClause });
-        return res.status(200).json({ success: true, banners });
+        return res.status(200).json({ success: true, data:banners });
     } catch (error) {
         console.error("Error in getBanners:", error);
         return res.status(500).json({ success: false, message: "Internal server error." });

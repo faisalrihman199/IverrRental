@@ -46,7 +46,7 @@ const getCities = async (req, res) => {
         }
 
         const cities = await City.findAll({ where: whereCondition });
-        res.status(200).json({ success: true, cities });
+        res.status(200).json({ success: true, data:cities });
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: "Error fetching cities." });

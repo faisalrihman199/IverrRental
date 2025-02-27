@@ -62,7 +62,7 @@ const getCarBrands = async (req, res) => {
         if (status) whereClause.status = status;
 
         const carBrands = await CarBrand.findAll({ where: whereClause });
-        return res.status(200).json({ success: true, carBrands });
+        return res.status(200).json({ success: true, data:carBrands });
     } catch (error) {
         console.error("Error in getCarBrands:", error);
         return res.status(500).json({ success: false, message: "Internal server error." });

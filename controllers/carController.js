@@ -216,7 +216,7 @@ const getCars = async (req, res) => {
         return carObj;
       });
       
-      return res.status(200).json({ success: true, cars: parsedCars });
+      return res.status(200).json({ success: true, data: parsedCars });
     } catch (error) {
       console.error("Error in getCars:", error);
       return res.status(500).json({ success: false, message: error.message });

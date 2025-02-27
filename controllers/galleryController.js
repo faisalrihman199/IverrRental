@@ -79,24 +79,51 @@ const saveGalleryImage = async (req, res) => {
     }
 };
 
-// Get All Gallery Images
 const getGalleryImages = async (req, res) => {
     try {
-        const { id, carId } = req.query; // Changed from carTypeId to carId
+        const { id, carId } = req.query;
         let whereClause = {};
 
         if (id) whereClause.id = id;
         if (carId) whereClause.carId = carId;
 
-        const galleryImages = await Gallery.findAll({ where: whereClause });
-        // Parse the image JSON for each record
-        const parsedGalleryImages = galleryImages.map(img => parseGalleryImage(img));
-        return res.status(200).json({ success: true, galleryImages: parsedGalleryImages });
+        // Make sure Car is imported, e.g.,
+        // const Car = require('../models/Car');
+
+        const galleryImages = await Gallery.findAll({
+            where: whereClause,
+            include: [{
+                model: Car,
+                attributes: ['name'] // Only fetch the car's name
+            }]
+        });
+
+        const parsedGalleryImages = galleryImages.map(gallery => {
+            const galleryObj = gallery.toJSON();
+            let images = [];
+            try {
+                // Parse the stringified JSON array
+                images = JSON.parse(galleryObj.image);
+            } catch (error) {
+                images = [];
+            }
+            return {
+                id: galleryObj.id,
+                name: galleryObj.Car ? galleryObj.Car.name.trim() : null,
+                image: images.length > 0 ? images[0] : null,
+                carId: galleryObj.carId,
+                images: images
+            };
+        });
+
+        return res.status(200).json({ success: true, data: parsedGalleryImages });
     } catch (error) {
         console.error("Error in getGalleryImages:", error);
         return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
+
+
 
 // Delete Gallery Image and Remove Image Files
 const deleteGalleryImage = async (req, res) => {

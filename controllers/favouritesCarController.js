@@ -89,7 +89,7 @@ const getFavouriteCars = async (req, res) => {
       return favObj;
     });
 
-    return res.status(200).json({ success: true, favourites: parsedFavourites });
+    return res.status(200).json({ success: true, data: parsedFavourites });
   } catch (error) {
     console.error("Error in getFavouriteCars:", error);
     return res.status(500).json({ success: false, message: "Internal server error." });
