@@ -1,4 +1,5 @@
 const { FavouritesCar, Car, Gallery } = require("../models");
+const models = require("../models");
 
 // Update Favourite: Add or Remove a favourite car
 const updateFavourite = async (req, res) => {
@@ -47,54 +48,63 @@ const updateFavourite = async (req, res) => {
 const getFavouriteCars = async (req, res) => {
   try {
     const userId = req.user.id;
-    // Fetch favourites with associated Car and its Gallery
     const favourites = await FavouritesCar.findAll({
       where: { userId },
       include: [
         {
           model: Car,
-          include: [{ model: Gallery }]
+          include: [
+            { model: Gallery },
+            {model:models.Facility},
+            {model:models.CarBrand},
+            {model:models.CarType},
+            {model:models.City},
+            { model: models.User, attributes: ["fullName"] }
+          ]
         }
       ]
     });
 
-    // For each favourite, combine images from Car.image and Gallery.image, then bind to Car.image
-    const parsedFavourites = favourites.map(fav => {
-      const favObj = fav.toJSON();
-      let carImages = [];
-      let galleryImages = [];
+    const parsedFavouriteCars = favourites
+      .map(fav => {
+        if (!fav.Car) return null;
+        const carObj = fav.Car.toJSON();
+        let carImages = [];
+        let galleryImages = [];
 
-      // Parse Car.image if it exists
-      if (favObj.Car && favObj.Car.image) {
-        try {
-          carImages = JSON.parse(favObj.Car.image);
-        } catch (err) {
-          carImages = [];
+        if (carObj.image) {
+          try {
+            carImages = JSON.parse(carObj.image);
+          } catch (err) {
+            carImages = [];
+          }
         }
-      }
-      // Parse Gallery.image if it exists
-      if (favObj.Car && favObj.Car.Gallery && favObj.Car.Gallery.image) {
-        try {
-          galleryImages = JSON.parse(favObj.Car.Gallery.image);
-        } catch (err) {
-          galleryImages = [];
-        }
-      }
-      // Combine both arrays
-      favObj.Car.image = [...carImages, ...galleryImages];
-      // Remove the Gallery property so that only one image key remains
-      if (favObj.Car.Gallery) {
-        delete favObj.Car.Gallery;
-      }
-      return favObj;
-    });
 
-    return res.status(200).json({ success: true, data: parsedFavourites });
+        if (carObj.Gallery && carObj.Gallery.image) {
+          try {
+            galleryImages = JSON.parse(carObj.Gallery.image);
+          } catch (err) {
+            galleryImages = [];
+          }
+        }
+
+        const combinedImages = [...carImages, ...galleryImages];
+        carObj.images = combinedImages;
+        carObj.image = combinedImages.length > 0 ? combinedImages[0] : null;
+        carObj.owner = carObj.User ? carObj.User.fullName : null;
+        delete carObj.Gallery;
+        delete carObj.User;
+        return carObj;
+      })
+      .filter(car => car !== null);
+
+    return res.status(200).json({ success: true, data: parsedFavouriteCars });
   } catch (error) {
     console.error("Error in getFavouriteCars:", error);
     return res.status(500).json({ success: false, message: "Internal server error." });
   }
 };
+
 
 module.exports = {
   updateFavourite,
