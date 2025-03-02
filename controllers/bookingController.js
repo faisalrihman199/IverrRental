@@ -1,3 +1,4 @@
+const models = require("../models");
 const { Booking } = require("../models");
 const { Op } = require("sequelize");
 
@@ -82,59 +83,102 @@ const saveBooking = async (req, res) => {
 };
 
 const getBookings = async (req, res) => {
-  try {
-    const { carId, userId, startDate, endDate, startTime, endTime, status, driver } = req.query;
-    const currentUserId = req.user.id;
-    const isAdmin = req.user.role === "admin";
-    let whereClause = {};
-
-    if (!isAdmin) {
-      whereClause.userId = currentUserId;
-    } else {
-      if (userId) {
+    try {
+      const { carId, userId, startDate, endDate, startTime, endTime, status, driver } = req.query;
+      const currentUserId = req.user.id;
+      const isAdmin = req.user.role === "admin";
+      let whereClause = {};
+  
+      if (!isAdmin) {
+        whereClause.userId = currentUserId;
+      } else if (userId) {
         whereClause.userId = userId;
       }
-    }
-
-    if (carId) {
-      whereClause.carId = carId;
-    }
-    if (status) {
-      whereClause.status = status;
-    }
-    if (startDate && endDate) {
-      whereClause[Op.and] = [
-        { pickDate: { [Op.lte]: endDate } },
-        { returnDate: { [Op.gte]: startDate } }
-      ];
-    } else if (startDate) {
-      whereClause.pickDate = { [Op.gte]: startDate };
-    } else if (endDate) {
-      whereClause.returnDate = { [Op.lte]: endDate };
-    }
-    if (startTime && endTime) {
-      whereClause.pickTime = { [Op.gte]: startTime };
-      whereClause.returnTime = { [Op.lte]: endTime };
-    } else if (startTime) {
-      whereClause.pickTime = { [Op.gte]: startTime };
-    } else if (endTime) {
-      whereClause.returnTime = { [Op.lte]: endTime };
-    }
-    if (driver) {
-      if (driver.toLowerCase() === "yes") {
-        whereClause.isDriver = true;
-      } else if (driver.toLowerCase() === "no") {
-        whereClause.isDriver = false;
+  
+      if (carId) {
+        whereClause.carId = carId;
       }
+      if (status) {
+        whereClause.status = status;
+      }
+      if (startDate && endDate) {
+        whereClause[Op.and] = [
+          { pickDate: { [Op.lte]: endDate } },
+          { returnDate: { [Op.gte]: startDate } }
+        ];
+      } else if (startDate) {
+        whereClause.pickDate = { [Op.gte]: startDate };
+      } else if (endDate) {
+        whereClause.returnDate = { [Op.lte]: endDate };
+      }
+      if (startTime && endTime) {
+        whereClause.pickTime = { [Op.gte]: startTime };
+        whereClause.returnTime = { [Op.lte]: endTime };
+      } else if (startTime) {
+        whereClause.pickTime = { [Op.gte]: startTime };
+      } else if (endTime) {
+        whereClause.returnTime = { [Op.lte]: endTime };
+      }
+      if (driver) {
+        if (driver.toLowerCase() === "yes") {
+          whereClause.isDriver = true;
+        } else if (driver.toLowerCase() === "no") {
+          whereClause.isDriver = false;
+        }
+      }
+  
+      const bookings = await Booking.findAll({
+        where: whereClause,
+        include: [models.Car, models.User],
+        order: [["createdAt", "DESC"]]
+      });
+  
+      // Helper function to convert "HH:mm:ss" to "h:mm AM/PM"
+      const convertTime = (time24) => {
+        const [hour, minute] = time24.split(':');
+        let h = parseInt(hour, 10);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12;
+        if (h === 0) h = 12;
+        return `${h}:${minute} ${ampm}`;
+      };
+  
+      const formattedBookings = bookings.map(booking => {
+        // Use .dataValues if it's a Sequelize instance
+        const bookingData = booking.dataValues || booking;
+        const car = bookingData.Car;
+        const user = bookingData.User;
+  
+        // Parse the car image field, which is stored as a JSON string.
+        let carImages = [];
+        try {
+          carImages = JSON.parse(car.image);
+        } catch (error) {
+          // Fallback in case the parsing fails
+          carImages = [car.image];
+        }
+  
+        return {
+          id: bookingData.id,
+          carName: car.name.trim(),
+          carImage: carImages[0], // First image from the parsed array
+          pickDate: bookingData.pickDate, // Assumes format is already yyyy-mm-dd
+          pickTime: convertTime(bookingData.pickTime), // Format to AM/PM
+          dropDate: bookingData.returnDate, // Renamed from returnDate to dropDate
+          dropTime: convertTime(bookingData.returnTime),
+          customerName: user.fullName,
+          customerPhone: user.phone,
+          status:bookingData.status
+        };
+      });
+  
+      return res.status(200).json({ success: true, data: formattedBookings });
+    } catch (error) {
+      console.error("Error in getBookings:", error);
+      return res.status(500).json({ success: false, message: "Internal server error." });
     }
-
-    const bookings = await Booking.findAll({ where: whereClause });
-    return res.status(200).json({ success: true, data: bookings });
-  } catch (error) {
-    console.error("Error in getBookings:", error);
-    return res.status(500).json({ success: false, message: "Internal server error." });
-  }
-};
+  };
+  
 const getComingBookings = async (req, res) => {
     try {
         const { carId, startDate, endDate } = req.query;

@@ -17,8 +17,8 @@ const saveCity = async (req, res) => {
             if (!city) {
                 return res.status(404).json({ success: false, message: "City not found." });
             }
-            city.name = name;
-            city.status = status;
+            city.name = name || city.name;
+            city.status = status || city.status;
             await city.save();
         } else {
             // Create new city

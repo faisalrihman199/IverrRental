@@ -9,11 +9,10 @@ const saveBanner = async (req, res) => {
         const { status } = req.body;
         const file = req.file;
 
-        if (!file) {
+        // For new banner creation, the image file is required.
+        if (!id && !file) {
             return res.status(400).json({ success: false, message: "Image file is required." });
         }
-
-        const imagePath = `/uploads/banners/${file.filename}`;
 
         let banner;
         if (id) {
@@ -23,25 +22,36 @@ const saveBanner = async (req, res) => {
                 return res.status(404).json({ success: false, message: "Banner not found." });
             }
 
-            // Delete the old image file
-            if (banner.image) {
-                const oldImagePath = path.join(__dirname, `../public${banner.image}`);
-                console.log(`Trying to delete: ${oldImagePath}`);
+            // Prepare the data to update (always include status)
+            const updateData = { status };
 
-                if (fs.existsSync(oldImagePath)) {
-                    fs.unlink(oldImagePath, (err) => {
-                        if (err) console.error("Error deleting old image:", err);
-                        else console.log("Old image deleted successfully.");
-                    });
-                } else {
-                    console.log("Old image file not found.");
+            // Only update the image if a new file is provided
+            if (file) {
+                const imagePath = `/uploads/banners/${file.filename}`;
+
+                // Delete the old image file if it exists
+                if (banner.image) {
+                    const oldImagePath = path.join(__dirname, `../public${banner.image}`);
+                    console.log(`Trying to delete: ${oldImagePath}`);
+
+                    if (fs.existsSync(oldImagePath)) {
+                        fs.unlink(oldImagePath, (err) => {
+                            if (err) console.error("Error deleting old image:", err);
+                            else console.log("Old image deleted successfully.");
+                        });
+                    } else {
+                        console.log("Old image file not found.");
+                    }
+
                 }
+                updateData.image = imagePath;
             }
 
-            await banner.update({ image: imagePath, status });
+            await banner.update(updateData);
             return res.status(200).json({ success: true, message: "Banner updated successfully.", banner });
         } else {
             // Insert new banner
+            const imagePath = `/uploads/banners/${file.filename}`;
             banner = await Banner.create({ image: imagePath, status });
             return res.status(201).json({ success: true, message: "Banner created successfully.", banner });
         }
@@ -50,6 +60,7 @@ const saveBanner = async (req, res) => {
         return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
+
 
 const getBanners = async (req, res) => {
     try {

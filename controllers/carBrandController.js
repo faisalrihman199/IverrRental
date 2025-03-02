@@ -6,18 +6,19 @@ const { CarBrand } = require("../models");
 const saveCarBrand = async (req, res) => {
     try {
         const { id } = req.query;
+        // In creation, title is required. In updates, title is optional.
         const { title, status } = req.body;
         const file = req.file;
 
-        if (!title) {
+        // For creation, ensure title is provided.
+        if (!id && !title) {
             return res.status(400).json({ success: false, message: "Car brand title is required." });
         }
 
-        let imagePath = null;
+        let imagePath;
         if (file) {
             imagePath = `/uploads/car_brands/${file.filename}`;
         }
-
         let carBrand;
         if (id) {
             // Update existing car brand
@@ -26,24 +27,43 @@ const saveCarBrand = async (req, res) => {
                 return res.status(404).json({ success: false, message: "Car brand not found." });
             }
 
-            // Delete the old image file
-            if (carBrand.image) {
-                const oldImagePath = path.join(__dirname, `../public${carBrand.image}`);
-                console.log(`Trying to delete: ${oldImagePath}`);
+            // Build the update data dynamically
+            let updateData = {};
+            if (title !== undefined) {
+                updateData.title = title;
+            }
+            if (status !== undefined) {
+                updateData.status = status;
+            }
+            if (imagePath) {
+                // Delete the old image file if it exists
+                if (carBrand.image) {
+                    const oldImagePath = path.join(__dirname, `../public${carBrand.image}`);
+                    console.log(`Trying to delete: ${oldImagePath}`);
 
-                if (fs.existsSync(oldImagePath)) {
-                    fs.unlinkSync(oldImagePath);
-                    console.log("Old image deleted successfully.");
-                } else {
-                    console.log("Old image file not found.");
+                    if (fs.existsSync(oldImagePath)) {
+                        fs.unlinkSync(oldImagePath);
+                        console.log("Old image deleted successfully.");
+                    } else {
+                        console.log("Old image file not found.");
+                    }
                 }
+                updateData.image = imagePath;
             }
 
-            await carBrand.update({ title, image: imagePath, status });
+            await carBrand.update(updateData);
             return res.status(200).json({ success: true, message: "Car brand updated successfully.", carBrand });
         } else {
             // Insert new car brand
-            carBrand = await CarBrand.create({ title, image: imagePath, status });
+            let newData = { title };
+            if (status !== undefined) {
+                newData.status = status;
+            }
+            if (imagePath) {
+                newData.image = imagePath;
+            }
+
+            carBrand = await CarBrand.create(newData);
             return res.status(201).json({ success: true, message: "Car brand created successfully.", carBrand });
         }
     } catch (error) {
@@ -51,6 +71,7 @@ const saveCarBrand = async (req, res) => {
         return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
+
 
 // Get All Car Brands
 const getCarBrands = async (req, res) => {

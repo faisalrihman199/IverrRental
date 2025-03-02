@@ -6,14 +6,12 @@ const { CarType } = require("../models");
 const saveCarType = async (req, res) => {
     try {
         const { id } = req.query;
-        const { title, status } = req.body;  // Changed name to title
+        // Destructure potential fields; they may be undefined if not provided.
+        const { title, status } = req.body;
         const file = req.file;
 
-        if (!title) {
-            return res.status(400).json({ message: "Car type title is required." });  // Changed name to title
-        }
-
-        let imagePath = null;
+        // Build image path only if a file is provided.
+        let imagePath;
         if (file) {
             imagePath = `/uploads/car_types/${file.filename}`;
         }
@@ -26,29 +24,53 @@ const saveCarType = async (req, res) => {
                 return res.status(404).json({ message: "Car type not found." });
             }
 
-            // Delete the old image file
-            if (carType.image) {
-                const oldImagePath = path.join(__dirname, `../public${carType.image}`);
-                console.log(`Trying to delete: ${oldImagePath}`);
+            // Build an update object only with keys provided in the request.
+            let updateData = {};
+            if (title !== undefined) {
+                updateData.title = title;
+            }
+            if (status !== undefined) {
+                updateData.status = status;
+            }
+            if (imagePath) {
+                // Delete the old image file if exists
+                if (carType.image) {
+                    const oldImagePath = path.join(__dirname, `../public${carType.image}`);
+                    console.log(`Trying to delete: ${oldImagePath}`);
 
-                if (fs.existsSync(oldImagePath)) {
-                    fs.unlinkSync(oldImagePath);
-                    console.log("Old image deleted successfully.");
-                } else {
-                    console.log("Old image file not found.");
+                    if (fs.existsSync(oldImagePath)) {
+                        fs.unlinkSync(oldImagePath);
+                        console.log("Old image deleted successfully.");
+                    } else {
+                        console.log("Old image file not found.");
+                    }
                 }
+                updateData.image = imagePath;
             }
 
-            await carType.update({ title, image: imagePath, status });  // Changed name to title
-            return res.status(200).json({success:true, message: "Car type updated successfully.", carType });
+            await carType.update(updateData);
+            return res.status(200).json({ success: true, message: "Car type updated successfully.", carType });
         } else {
-            // Insert new car type
-            carType = await CarType.create({ title, image: imagePath, status });  // Changed name to title
-            return res.status(201).json({success:true, message: "Car type created successfully.", carType });
+            // Creating a new car type; require title for creation.
+            if (!title) {
+                return res.status(400).json({ message: "Car type title is required." });
+            }
+
+            // Build the data for creation with keys that are provided.
+            let newData = { title };
+            if (status !== undefined) {
+                newData.status = status;
+            }
+            if (imagePath) {
+                newData.image = imagePath;
+            }
+
+            carType = await CarType.create(newData);
+            return res.status(201).json({ success: true, message: "Car type created successfully.", carType });
         }
     } catch (error) {
         console.error("Error in saveCarType:", error);
-        return res.status(500).json({success:false, message: "Internal server error." });
+        return res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
 
