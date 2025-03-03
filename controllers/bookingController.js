@@ -160,6 +160,9 @@ const getBookings = async (req, res) => {
   
         return {
           id: bookingData.id,
+          carId:booking.carId,
+          userId:car.userId,
+          isDriver:booking.isDriver,
           carName: car.name.trim(),
           carImage: carImages[0], // First image from the parsed array
           pickDate: bookingData.pickDate, // Assumes format is already yyyy-mm-dd
