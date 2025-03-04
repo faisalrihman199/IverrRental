@@ -26,9 +26,7 @@ const User = sequelize.define("User", {
         type: DataTypes.STRING,
         allowNull: false,
         defaultValue: "user", 
-        validate: {
-            isIn: [["user", "admin"]], 
-        },
+        
     },
     image:{
         type:DataTypes.TEXT,

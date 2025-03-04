@@ -10,6 +10,9 @@ function authenticateToken(req, res, next) {
         req.user = verified;
         next();
     } catch (err) {
+        if (err.name === 'TokenExpiredError') {
+            return res.status(401).send('Token Expired');
+        }
         res.status(400).send('Invalid Token');
     }
 }

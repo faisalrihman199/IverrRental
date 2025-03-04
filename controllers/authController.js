@@ -4,6 +4,9 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const sequelize = require("../config/db");
 const otpController = require("./otpController");
+const { Op } = require("sequelize");
+const moment = require("moment");
+
 
 const authController = {
     register: async (req, res) => {
@@ -12,9 +15,7 @@ const authController = {
         if (!otpController.verifyOTP(otp, email)) {
             return res.status(500).json({ success: false, message: "OTP not correct" });
         }
-
         const t = await sequelize.transaction();
-
         try {
             // Check if the email already exists
             const existingUser = await models.User.findOne({ where: { email } });
@@ -40,12 +41,22 @@ const authController = {
             if (!user) {
                 return res.status(200).json({ success: false, message: "User not found" });
             }
-
+    
             const isPasswordValid = await bcrypt.compare(password, user.password);
             if (!isPasswordValid) {
                 return res.status(200).json({ success: false, message: "Invalid password" });
             }
-            const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_KEY);
+            if(user.role==='inactive'){
+                return res.status(200).json({ success: false, message: "Inactive Status, Please contact Admin" });
+            }
+    
+            // Set token to expire in 1 minute
+            const token = jwt.sign(
+                { id: user.id, email: user.email, role: user.role },
+                process.env.JWT_KEY,
+                { expiresIn: '24h' } 
+            );
+    
             res.status(200).json({
                 success: true,
                 message: "Login successful",
@@ -59,6 +70,7 @@ const authController = {
             res.status(500).json({ success: false, message: "Error logging in." });
         }
     },
+    
     verifyOtpForPasswordReset: async (req, res) => {
         const { email, otp, newPassword } = req.body;
 
@@ -141,7 +153,7 @@ const authController = {
           }
           
           await user.save();
-          res.status(200).json({ success: true, message: "User info updated successfully", user });
+          res.status(200).json({ success: true, message: "User info updated successfully" });
         } catch (error) {
           console.error("Error updating user info:", error);
           res.status(500).json({ success: false, message: "Error updating user info" });
@@ -177,7 +189,7 @@ const authController = {
             user.email = newEmail;
             await user.save();
 
-            return res.status(200).json({ success: true, message: "Email updated successfully", user });
+            return res.status(200).json({ success: true, message: "Email updated successfully" });
         } catch (error) {
             console.error("Error in changeEmail:", error);
             return res.status(500).json({ success: false, message: "Internal server error" });
@@ -187,7 +199,7 @@ const authController = {
         try {
             const userId = req.user.id;
             const user = await models.User.findByPk(userId, {
-                attributes: ['fullName', 'email', 'phone']
+                attributes: ['fullName', 'email', 'phone','image']
               }); 
             if (!user) {
                 return res.status(404).json({ success: false, message: "User not found" })
@@ -197,8 +209,56 @@ const authController = {
             console.error("Error in userInfo:", error);
             return res.status(500).json({ success: false, message: "Internal server error" });
         }
-    }
+    },
+    getNonAdminUsers: async (req, res) => {
+        try {
+            const users = await models.User.findAll({
+                where: { role: { [Op.ne]: "admin" } }, 
+                attributes: [
+                    "id",
+                    "fullName",
+                    "email",
+                    "phone",
+                    ["role", "status"],
+                    ["createdAt", "joinedDate"]
+                ],
+                order: [["createdAt", "DESC"]]
+            });
+    
+            // Format joinedDate
+            const formattedUsers = users.map(user => ({
+                ...user.get(),
+                joinedDate: moment(user.joinedDate).format("DD-MMM-YYYY")
+            }));
+    
+            res.status(200).json({ success: true, data: formattedUsers });
+        } catch (error) {
+            console.error("Error fetching non-admin users:", error);
+            res.status(500).json({ success: false, message: "Error fetching users" });
+        }
+    },
+    updateUserStatus: async (req, res) => {
+        const { userId, status } = req.query; 
+        try {
+            const user = await models.User.findByPk(userId);
+            if (!user) {
+                return res.status(404).json({ success: false, message: "User not found" });
+            }
+            console.log("User found :", user);
+            
+    
+            // Update role based on the status provided
+            user.role = status; 
 
+            await user.save();
+    
+            res.status(200).json({ success: true, message: "User Status updated successfully",staus:user.role });
+        } catch (error) {
+            console.error("Error updating user role:", error);
+            res.status(500).json({ success: false, message: "Error updating user role" });
+        }
+    },
+    
     }
 
     module.exports = authController;
