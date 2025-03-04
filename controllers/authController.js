@@ -51,7 +51,7 @@ const authController = {
             }
 
             // Set token to expire in 1 minute
-            const jwtOptions = user.role === 'admin' ? { expiresIn: '1m' } : {};
+            const jwtOptions = user.role === 'admin' ? { expiresIn: '24h' } : {};
 
             const token = jwt.sign(
                 { id: user.id, email: user.email, role: user.role },
