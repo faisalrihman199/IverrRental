@@ -41,22 +41,24 @@ const authController = {
             if (!user) {
                 return res.status(200).json({ success: false, message: "User not found" });
             }
-    
+
             const isPasswordValid = await bcrypt.compare(password, user.password);
             if (!isPasswordValid) {
                 return res.status(200).json({ success: false, message: "Invalid password" });
             }
-            if(user.role==='inactive'){
+            if (user.role === 'inactive') {
                 return res.status(200).json({ success: false, message: "Inactive Status, Please contact Admin" });
             }
-    
+
             // Set token to expire in 1 minute
+            const jwtOptions = user.role === 'admin' ? { expiresIn: '1m' } : {};
+
             const token = jwt.sign(
                 { id: user.id, email: user.email, role: user.role },
                 process.env.JWT_KEY,
-                { expiresIn: '24h' } 
+                jwtOptions
             );
-    
+
             res.status(200).json({
                 success: true,
                 message: "Login successful",
@@ -70,7 +72,7 @@ const authController = {
             res.status(500).json({ success: false, message: "Error logging in." });
         }
     },
-    
+
     verifyOtpForPasswordReset: async (req, res) => {
         const { email, otp, newPassword } = req.body;
 
@@ -124,41 +126,41 @@ const authController = {
     updateUserInfo: async (req, res) => {
         const userId = req.user.id;
         try {
-          const user = await models.User.findByPk(userId);
-          if (!user) {
-            return res.status(404).json({ success: false, message: "User not found" });
-          }
-          const { fullName, phone, password, oldPassword } = req.body;
-          if (fullName) {
-            user.fullName = fullName;
-          }
-          if (phone) {
-            user.phone = phone;
-          }
-          if (req.file) {
-            user.image = `/uploads/users/${req.file.filename}`
-          } else if (req.body.image) {
-            user.image = req.body.image;
-          }
-          if (password) {
-            if (!oldPassword) {
-              return res.status(400).json({ success: false, message: "Old password is required to update to a new password" });
+            const user = await models.User.findByPk(userId);
+            if (!user) {
+                return res.status(404).json({ success: false, message: "User not found" });
             }
-            const isMatch = await bcrypt.compare(oldPassword, user.password);
-            if (!isMatch) {
-              return res.status(200).json({ success: false, message: "Old password is incorrect" });
+            const { fullName, phone, password, oldPassword } = req.body;
+            if (fullName) {
+                user.fullName = fullName;
             }
-            const hashedPassword = await bcrypt.hash(password, 10);
-            user.password = hashedPassword;
-          }
-          
-          await user.save();
-          res.status(200).json({ success: true, message: "User info updated successfully" });
+            if (phone) {
+                user.phone = phone;
+            }
+            if (req.file) {
+                user.image = `/uploads/users/${req.file.filename}`
+            } else if (req.body.image) {
+                user.image = req.body.image;
+            }
+            if (password) {
+                if (!oldPassword) {
+                    return res.status(400).json({ success: false, message: "Old password is required to update to a new password" });
+                }
+                const isMatch = await bcrypt.compare(oldPassword, user.password);
+                if (!isMatch) {
+                    return res.status(200).json({ success: false, message: "Old password is incorrect" });
+                }
+                const hashedPassword = await bcrypt.hash(password, 10);
+                user.password = hashedPassword;
+            }
+
+            await user.save();
+            res.status(200).json({ success: true, message: "User info updated successfully" });
         } catch (error) {
-          console.error("Error updating user info:", error);
-          res.status(500).json({ success: false, message: "Error updating user info" });
+            console.error("Error updating user info:", error);
+            res.status(500).json({ success: false, message: "Error updating user info" });
         }
-      },
+    },
     changeEmail: async (req, res) => {
         const { oldEmail, newEmail, newEmailOTP } = req.body;
 
@@ -199,12 +201,12 @@ const authController = {
         try {
             const userId = req.user.id;
             const user = await models.User.findByPk(userId, {
-                attributes: ['fullName', 'email', 'phone','image']
-              }); 
+                attributes: ['fullName', 'email', 'phone', 'image']
+            });
             if (!user) {
                 return res.status(404).json({ success: false, message: "User not found" })
             }
-            return res.status(200).json({ success: true,data:user, message: "User info retrieved successfully" });
+            return res.status(200).json({ success: true, data: user, message: "User info retrieved successfully" });
         } catch (error) {
             console.error("Error in userInfo:", error);
             return res.status(500).json({ success: false, message: "Internal server error" });
@@ -213,7 +215,7 @@ const authController = {
     getNonAdminUsers: async (req, res) => {
         try {
             const users = await models.User.findAll({
-                where: { role: { [Op.ne]: "admin" } }, 
+                where: { role: { [Op.ne]: "admin" } },
                 attributes: [
                     "id",
                     "fullName",
@@ -224,13 +226,13 @@ const authController = {
                 ],
                 order: [["createdAt", "DESC"]]
             });
-    
+
             // Format joinedDate
             const formattedUsers = users.map(user => ({
                 ...user.get(),
                 joinedDate: moment(user.joinedDate).format("DD-MMM-YYYY")
             }));
-    
+
             res.status(200).json({ success: true, data: formattedUsers });
         } catch (error) {
             console.error("Error fetching non-admin users:", error);
@@ -238,27 +240,27 @@ const authController = {
         }
     },
     updateUserStatus: async (req, res) => {
-        const { userId, status } = req.query; 
+        const { userId, status } = req.query;
         try {
             const user = await models.User.findByPk(userId);
             if (!user) {
                 return res.status(404).json({ success: false, message: "User not found" });
             }
             console.log("User found :", user);
-            
-    
+
+
             // Update role based on the status provided
-            user.role = status; 
+            user.role = status;
 
             await user.save();
-    
-            res.status(200).json({ success: true, message: "User Status updated successfully",staus:user.role });
+
+            res.status(200).json({ success: true, message: "User Status updated successfully", staus: user.role });
         } catch (error) {
             console.error("Error updating user role:", error);
             res.status(500).json({ success: false, message: "Error updating user role" });
         }
     },
-    
-    }
 
-    module.exports = authController;
+}
+
+module.exports = authController;
