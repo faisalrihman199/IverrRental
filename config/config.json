@@ -1,26 +1,26 @@
 {
   "development": {
-    "username": "avnadmin",
-    "password": "AVNS_xK2dSH28jV4ULght_wy",
-    "database": "defaultdb",
-    "host": "mysql-b1b4a88-workglobal30-58c0.i.aivencloud.com",
-    "port":10134,
+    "username": "root", 
+    "password": "", 
+    "database": "rental_app", 
+    "host": "localhost", 
+    "port": 3306, 
     "dialect": "mysql"
   },
   "test": {
-    "username": "avnadmin",
-    "password": "AVNS_xK2dSH28jV4ULght_wy",
-    "database": "defaultdb",
-    "host": "mysql-b1b4a88-workglobal30-58c0.i.aivencloud.com",
-    "port":10134,
+    "username": "root", 
+    "password": "", 
+    "database": "rental_app", 
+    "host": "localhost", 
+    "port": 3306, 
     "dialect": "mysql"
   },
   "production": {
-    "username": "avnadmin",
-    "password": "AVNS_xK2dSH28jV4ULght_wy",
-    "database": "defaultdb",
-    "host": "mysql-b1b4a88-workglobal30-58c0.i.aivencloud.com",
-    "port":10134,
+    "username": "root", 
+    "password": "", 
+    "database": "rental_app", 
+    "host": "localhost", 
+    "port": 3306, 
     "dialect": "mysql"
   }
 }

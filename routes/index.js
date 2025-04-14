@@ -16,6 +16,7 @@ var car = require("./car");
 var page = require("./page"); 
 var booking = require("./booking"); 
 var favouriteCars = require("./favouritecars"); 
+var notifications = require("./notifications"); 
 
 router.get('/', function(req, res, next) {
   res.send("Iverr Project is running");
@@ -36,5 +37,6 @@ router.use("/car", car);
 router.use("/page", page); 
 router.use("/booking", booking); 
 router.use("/favouritecars", favouriteCars); 
+router.use("/notifications", notifications); 
 
 module.exports = router;

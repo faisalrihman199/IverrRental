@@ -3,10 +3,15 @@
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     // Add the 'image' column to the 'Users' table
-    await queryInterface.addColumn('Users', 'image', {
-      type: Sequelize.STRING,
-      allowNull: true, // Change to false if you want this column to be required
-    });
+    const columns = await queryInterface.describeTable('Users'); // Get table's column details
+
+    if (!columns.image) {
+      await queryInterface.addColumn('Users', 'image', {
+        type: Sequelize.STRING,
+        allowNull: true, 
+      });
+    }
+    
   },
 
   down: async (queryInterface, Sequelize) => {

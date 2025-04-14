@@ -14,6 +14,7 @@ const Gallery = require('./gallery');
 const Car = require('./car');
 const Page = require('./page');
 const Booking = require('./booking');
+const Notification = require('./notification');
 const FavouritesCar = require('./FavouritesCar'); // Import the explicit FavouritesCar model
 
 const models = {
@@ -29,14 +30,19 @@ const models = {
     Car,
     Page,
     Booking,
-    FavouritesCar
+    FavouritesCar,
+    Notification
 };
 
 // Define relationships
 
-// One-to-Many: Car ↔ CarBrand
+// One-to-Many: User ↔ CarBrand
 User.hasMany(Car, { foreignKey: 'userId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 Car.belongsTo(User, { foreignKey: 'userId' });
+
+//One- to- Many:User  ↔ Notifications
+User.hasMany(Notification, { foreignKey: 'userId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+Notification.belongsTo(User, { foreignKey: 'userId' });
 // One-to-One: CarType ↔ Gallery
 Car.hasOne(Gallery, { foreignKey: 'carId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 Gallery.belongsTo(Car, { foreignKey: 'carId' });
