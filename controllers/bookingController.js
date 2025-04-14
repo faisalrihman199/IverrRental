@@ -73,15 +73,27 @@ const saveBooking = async (req, res) => {
       await Booking.update(updateData, { where: { id } });
       booking = await Booking.findByPk(id);
       res.status(200).json({ success: true, message: 'Booking updated successfully.', booking });
-
       // Offload the notification creation to a background task (asynchronously)
       setTimeout(async () => {
-          try {
-              const notificationData = {
-                  userId,
+        try {
+
+          const car = await models.Car.findOne({
+            where: {
+              id: booking.carId
+            }
+          });
+          let carOwner=null;
+          if (car) {
+             carOwner= car.userId;  // Assuming `userId` is a column in the Car model
+            console.log("Car Owner :",carOwner);  // This will log the userId associated with the carId
+          } else {
+            console.log('Car not found');
+          }
+          const notificationData = {
+                  userId:carOwner,
                   type: 'booking',
                   heading: 'Booking Updated',
-                  content: `Your booking for car ID ${carId} has been updated. New pick-up: ${pickDate} at ${pickTime}, New return: ${returnDate} at ${returnTime}.`,
+                  content: `Your booking for car ID ${booking,carId} has been updated. New pick-up: ${booking.pickDate} at ${booking.pickTime}, New return: ${booking.returnDate} at ${booking.returnTime}.`,
                   status: 'unread',
               };
               await addNotification(notificationData); // Send the notification asynchronously
@@ -93,18 +105,31 @@ const saveBooking = async (req, res) => {
     } else {
       booking = await Booking.create(effectiveData);
       res.status(201).json({ success: true, message: 'Booking created successfully.', booking });
+      
       setTimeout(async () => {
         try {
-          const notificationData = {
-            userId,
+          const car = await models.Car.findOne({
+            where: {
+              id: carId
+            }
+          });
+          let carOwner=null;
+          if (car) {
+             carOwner= car.userId;  
+            console.log("Car Owner :",carOwner);  
+          } else {
+            console.log('Car not found');
+          }
+          let notificationData = {
+            userId:carOwner,
             type: 'booking',
             heading: 'New Booking Added',
             content: `Your booking for car ID ${carId} has been successfully created. Pick-up: ${pickDate} at ${pickTime}, Return: ${returnDate} at ${returnTime}.`,
             status: 'unread',
           };
-          await addNotification(notificationData); // Send the notification asynchronously
+          await addNotification(notificationData); 
         } catch (error) {
-          console.error('Error sending notification:', error); // Log the error if something goes wrong
+          console.error('Error sending notification:', error); 
         }
       }, 200);
     }
