@@ -264,7 +264,32 @@ const authController = {
             res.status(500).json({ success: false, message: "Error updating user role" });
         }
     },
-
+    deleteUserAccount: async (req, res) => {
+        try {
+            const { userId } = req.query;
+            const loggedInUser = req.user;
+    
+            const targetUserId = userId || loggedInUser.id;
+            const isAdmin = loggedInUser.role === 'admin';
+    
+            if (!isAdmin && targetUserId !== loggedInUser.id) {
+                return res.status(403).json({ success: false, message: "You are not authorized to delete this user." });
+            }
+    
+            const user = await models.User.findByPk(targetUserId);
+            if (!user) {
+                return res.status(404).json({ success: false, message: "User not found" });
+            }
+    
+            await user.destroy();
+    
+            return res.status(200).json({ success: true, message: "User account deleted successfully" });
+        } catch (error) {
+            console.error("Error deleting user account:", error);
+            return res.status(500).json({ success: false, message: "Error deleting user account" });
+        }
+    }
+    
 }
 
 module.exports = authController;
