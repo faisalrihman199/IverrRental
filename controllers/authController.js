@@ -10,7 +10,7 @@ const moment = require("moment");
 
 const authController = {
     register: async (req, res) => {
-        const { fullName, email, password, phone, otp } = req.body;
+        const { firstName,lastName, email, password, phone, otp } = req.body;
 
         if (!otpController.verifyOTP(otp, email)) {
             return res.status(500).json({ success: false, message: "OTP not correct" });
@@ -25,7 +25,7 @@ const authController = {
 
             const hashedPassword = await bcrypt.hash(password, 10);
 
-            const user = await models.User.create({ email, password: hashedPassword, phone, fullName }, { transaction: t });
+            const user = await models.User.create({ email, password: hashedPassword, phone, firstName,lastName }, { transaction: t });
             await t.commit();
             res.status(201).json({ success: true, message: "Registration successful" });
         } catch (error) {
@@ -130,9 +130,12 @@ const authController = {
             if (!user) {
                 return res.status(404).json({ success: false, message: "User not found" });
             }
-            const { fullName, phone, password, oldPassword } = req.body;
-            if (fullName) {
-                user.fullName = fullName;
+            const { firstName,lastName, phone, password, oldPassword } = req.body;
+            if (firstName) {
+                user.firstName = firstName;
+            }
+            if (lastName) {
+                user.lastName = lastName;
             }
             if (phone) {
                 user.phone = phone;
@@ -201,7 +204,7 @@ const authController = {
         try {
             const userId = req.user.id;
             const user = await models.User.findByPk(userId, {
-                attributes: ['fullName', 'email', 'phone', 'image']
+                attributes: ['firstName','lastName', 'email', 'phone', 'image']
             });
             if (!user) {
                 return res.status(404).json({ success: false, message: "User not found" })
@@ -218,7 +221,8 @@ const authController = {
                 where: { role: { [Op.ne]: "admin" } },
                 attributes: [
                     "id",
-                    "fullName",
+                    "firstName",
+                    "lastName",
                     "email",
                     "phone",
                     ["role", "status"],
