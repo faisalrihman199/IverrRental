@@ -3,6 +3,7 @@ const sequelize = require('../config/db');
 
 // Import models
 const User = require('./user');
+const UserDocument = require('./userDocument');
 const Banner = require('./banner');
 const City = require('./city');
 const CarType = require('./carType');
@@ -14,8 +15,10 @@ const Gallery = require('./gallery');
 const Car = require('./car');
 const Page = require('./page');
 const Booking = require('./booking');
+const Review = require('./review');
 const Notification = require('./notification');
 const FavouritesCar = require('./FavouritesCar'); // Import the explicit FavouritesCar model
+const Insurance = require('./insurance');
 
 const models = {
     User,
@@ -31,7 +34,10 @@ const models = {
     Page,
     Booking,
     FavouritesCar,
-    Notification
+    Notification,
+    UserDocument,
+    Review,
+    Insurance
 };
 
 // Define relationships

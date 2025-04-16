@@ -36,6 +36,14 @@ const User = sequelize.define("User", {
     image:{
         type:DataTypes.TEXT,
         allowNull: true,
+    },
+    description:{
+        type:DataTypes.TEXT,
+        allowNull: true,
+    },
+    bankAccount:{
+        type:DataTypes.STRING,
+        allowNull: true,
     }
 }, {
     timestamps: true, 

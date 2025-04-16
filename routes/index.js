@@ -15,6 +15,8 @@ var coupon = require("./coupon");
 var car = require("./car"); 
 var page = require("./page"); 
 var booking = require("./booking"); 
+var review = require("./review"); 
+var insurance = require("./insurance"); 
 var favouriteCars = require("./favouritecars"); 
 var notifications = require("./notifications"); 
 
@@ -36,6 +38,8 @@ router.use("/coupon", coupon);
 router.use("/car", car); 
 router.use("/page", page); 
 router.use("/booking", booking); 
+router.use("/review", review); 
+router.use("/insurance", insurance); 
 router.use("/favouritecars", favouriteCars); 
 router.use("/notifications", notifications); 
 

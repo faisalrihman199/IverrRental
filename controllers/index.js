@@ -14,6 +14,8 @@ const page = require("./pageController")
 const booking = require("./bookingController")
 const favouriteCars= require("./favouritesCarController")
 const notifications=require("./notificationController")
-const controllers = {admin,auth,otp,banner,city, carType,carBrand,gallery,faq,facility,coupon,car,favouriteCars, page,booking, notifications}
+const reviews=require("./reviewController")
+const Insurance = require('./insuranceController')
+const controllers = {admin,auth,otp,banner,city, carType,carBrand,gallery,faq,facility,coupon,car,favouriteCars, page,booking, notifications,reviews, Insurance}
 
 module.exports = controllers
