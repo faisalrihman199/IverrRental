@@ -126,97 +126,101 @@ const authController = {
         }
     },
     updateUserInfo: async (req, res) => {
-        const userId = req.user.id;
-        const t      = await sequelize.transaction();
+      const userId = req.user.id;
+      const t      = await sequelize.transaction();
     
-        try {
-          // 1) Find & update User
-          const user = await models.User.findByPk(userId, { transaction: t });
-          if (!user) {
-            await t.rollback();
-            return res.status(404).json({ success: false, message: "User not found" });
-          }
-    
-          const { firstName, lastName, phone, password, oldPassword,description,bankAccount } = req.body;
-          if (firstName) user.firstName = firstName;
-          if (lastName)  user.lastName  = lastName;
-          if (phone)     user.phone     = phone;
-          if (description)  user.description = description;
-          if (bankAccount)  user.bankAccount = bankAccount;
-    
-          if (req.file) {
-            if (user.image) {
-              const rel       = user.image.replace(/^\/+/, "");
-              const oldImgPath = path.join(__dirname, "..", "public", rel);
-              try {
-                if (fs.existsSync(oldImgPath)) fs.unlinkSync(oldImgPath);
-              } catch (e) {
-                console.warn(`Could not delete old profile image at ${oldImgPath}:`, e);
-              }
-            }
-            user.image = `/uploads/users/${req.file.filename}`;
-          } else if (req.body.image) {
-            user.image = req.body.image;
-          }
-    
-          if (password) {
-            if (!oldPassword) {
-              await t.rollback();
-              return res.status(400).json({ success: false, message: "Old password is required" });
-            }
-            const match = await bcrypt.compare(oldPassword, user.password);
-            if (!match) {
-              await t.rollback();
-              return res.status(400).json({ success: false, message: "Old password is incorrect" });
-            }
-            user.password = await bcrypt.hash(password, 10);
-          }
-    
-          await user.save({ transaction: t });
-    
-          // 2) Handle UserDocument uploads + delete any previous file
-          const fileFields = ["cnicOrPassport", "drivingLicense", "companyDoc"];
-          const hasFile    = fileFields.some(f => req.files?.[f]);
-    
-          if (hasFile) {
-            const [doc] = await models.UserDocument.findOrCreate({
-              where:    { userId },
-              defaults: { userId },
-              transaction: t,
-            });
-    
-            for (const field of fileFields) {
-              if (req.files[field]) {
-                // delete old file if it exists
-                if (doc[field]) {
-                  // remove leading slash, then resolve under public/
-                  const rel = doc[field].replace(/^\/+/, "");
-                  const oldPath = path.join(__dirname, "..", "public", rel);
-                  try {
-                    if (fs.existsSync(oldPath)) {
-                      fs.unlinkSync(oldPath);
-                    }
-                  } catch (err) {
-                    console.warn(`Could not delete old ${field} at ${oldPath}:`, err);
-                  }
-                }
-                // save new file path
-                const file      = req.files[field][0];
-                doc[field]      = `/uploads/userDocs/${file.filename}`;
-              }
-            }
-    
-            await doc.save({ transaction: t });
-          }
-    
-          await t.commit();
-          return res.status(200).json({ success: true, message: "User (and documents) updated" });
-        } catch (err) {
+      try {
+        // 1) Find & update User
+        const user = await models.User.findByPk(userId, { transaction: t });
+        if (!user) {
           await t.rollback();
-          console.error("Error updating user info:", err);
-          return res.status(500).json({ success: false, message: "Error updating user info" });
+          return res.status(404).json({ success: false, message: "User not found" });
         }
-      },
+    
+        const { firstName, lastName, phone, password, oldPassword, description, bankAccount } = req.body;
+        if (firstName)    user.firstName   = firstName;
+        if (lastName)     user.lastName    = lastName;
+        if (phone)        user.phone       = phone;
+        if (description)  user.description = description;
+        if (bankAccount)  user.bankAccount = bankAccount;
+    
+        // Profile image handling
+        if (req.file) {
+          if (user.image) {
+            const rel       = user.image.replace(/^\/+/, "");
+            const oldImgPath = path.join(__dirname, "..", "public", rel);
+            try {
+              if (fs.existsSync(oldImgPath)) fs.unlinkSync(oldImgPath);
+            } catch (e) {
+              console.warn(`Could not delete old profile image at ${oldImgPath}:`, e);
+            }
+          }
+          user.image = `/uploads/users/${req.file.filename}`;
+        } else if (req.body.image) {
+          user.image = req.body.image;
+        }
+    
+        // Password change
+        if (password) {
+          if (!oldPassword) {
+            await t.rollback();
+            return res.status(400).json({ success: false, message: "Old password is required" });
+          }
+          const match = await bcrypt.compare(oldPassword, user.password);
+          if (!match) {
+            await t.rollback();
+            return res.status(400).json({ success: false, message: "Old password is incorrect" });
+          }
+          user.password = await bcrypt.hash(password, 10);
+        }
+    
+        await user.save({ transaction: t });
+    
+        // 2) Handle UserDocument uploads + delete any previous files
+        const fileFields = ["cnicOrPassport", "drivingLicense", "companyDoc"];
+        const hasFile    = fileFields.some(f => Array.isArray(req.files?.[f]) && req.files[f].length > 0);
+    
+        if (hasFile) {
+          const [doc] = await models.UserDocument.findOrCreate({
+            where:    { userId },
+            defaults: { userId },
+            transaction: t,
+          });
+    
+          for (const field of fileFields) {
+            const files = req.files?.[field] || [];
+            if (files.length) {
+              // delete old files if any
+              if (doc[field]) {
+                try {
+                  const oldPaths = JSON.parse(doc[field]);
+                  for (const relPath of oldPaths) {
+                    const rel = relPath.replace(/^\/+/, "");
+                    const oldPath = path.join(__dirname, "..", "public", rel);
+                    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+                  }
+                } catch (e) {
+                  console.warn(`Could not parse or delete old ${field}:`, e);
+                }
+              }
+              // Save new file paths array
+              const newPaths = files.map(f => `/uploads/userDocs/${f.filename}`);
+              doc[field] = JSON.stringify(newPaths);
+            }
+          }
+    
+          await doc.save({ transaction: t });
+        }
+    
+        await t.commit();
+        return res.status(200).json({ success: true, message: "User (and documents) updated" });
+      } catch (err) {
+        await t.rollback();
+        console.error("Error updating user info:", err);
+        return res.status(500).json({ success: false, message: "Error updating user info" });
+      }
+    },
+    
       
     changeEmail: async (req, res) => {
         const { oldEmail, newEmail, newEmailOTP } = req.body;
@@ -255,48 +259,74 @@ const authController = {
         }
     },
     userInfo: async (req, res) => {
-        try {
-          const userId = req.user.id;
-      
-          // 1) fetch basic user info
-          const user = await models.User.findByPk(userId, {
-            attributes: ['firstName','lastName','email','phone','image']
-          });
-          if (!user) {
-            return res
-              .status(404)
-              .json({ success: false, message: "User not found" });
-          }
-      
-          // 2) fetch their documents
-          const docs = await models.UserDocument.findOne({
-            where: { userId },
-            attributes: [
-              'cnicOrPassport',
-              'cnicOrPassportStatus',
-              'drivingLicense',
-              'drivingLicenseStatus',
-              'companyDoc',
-              'companyDocStatus'
-            ]
-          });
-      
-          // 3) respond with both
-          return res.status(200).json({
-            success: true,
-            data: {
-              user,
-              documents: docs || null
-            },
-            message: "User info (and documents) retrieved successfully"
-          });
-        } catch (error) {
-          console.error("Error in userInfo:", error);
+      try {
+        const userId = req.user.id;
+    
+        // 1) fetch basic user info
+        const user = await models.User.findByPk(userId, {
+          attributes: ['firstName','lastName','email','phone','image']
+        });
+        if (!user) {
           return res
-            .status(500)
-            .json({ success: false, message: "Internal server error" });
+            .status(404)
+            .json({ success: false, message: "User not found" });
         }
-      },      
+    
+        // 2) fetch their documents
+        const docsRecord = await models.UserDocument.findOne({
+          where: { userId },
+          attributes: [
+            'cnicOrPassport',
+            'cnicOrPassportStatus',
+            'drivingLicense',
+            'drivingLicenseStatus',
+            'companyDoc',
+            'companyDocStatus'
+          ]
+        });
+    
+        // 3) prepare documents: parse JSON strings into arrays
+        let documents = null;
+        if (docsRecord) {
+          const raw = docsRecord.get({ plain: true });
+          documents = {
+            cnicOrPassport: [],
+            cnicOrPassportStatus: raw.cnicOrPassportStatus,
+            drivingLicense: [],
+            drivingLicenseStatus: raw.drivingLicenseStatus,
+            companyDoc: [],
+            companyDocStatus: raw.companyDocStatus,
+          };
+          // parse each field that should be an array
+          ['cnicOrPassport', 'drivingLicense', 'companyDoc'].forEach(field => {
+            const val = raw[field];
+            if (typeof val === 'string') {
+              try {
+                documents[field] = JSON.parse(val);
+              } catch (e) {
+                documents[field] = [];
+              }
+            }
+          });
+        }
+    
+        // 4) respond with both
+        return res.status(200).json({
+          success: true,
+          data: {
+            user,
+            documents
+          },
+          message: "User info (and documents) retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error in userInfo:", error);
+        return res
+          .status(500)
+          .json({ success: false, message: "Internal server error" });
+      }
+    },
+       
     getNonAdminUsers: async (req, res) => {
         try {
             const users = await models.User.findAll({
