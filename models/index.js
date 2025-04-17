@@ -42,6 +42,11 @@ const models = {
 
 // Define relationships
 
+Car.hasMany(Review, { foreignKey: 'carId' });
+
+// In Review.js
+Review.belongsTo(Car, { foreignKey: 'carId' });
+
 // One-to-Many: User ↔ CarBrand
 User.hasMany(Car, { foreignKey: 'userId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 Car.belongsTo(User, { foreignKey: 'userId' });

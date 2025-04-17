@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { Car, User,Gallery, Facility, CarType, CarBrand, City, sequelize } = require('../models');
+const { Car, User,Gallery,Review, Facility, CarType, CarBrand, City, sequelize } = require('../models');
 
 const saveCar = async (req, res) => {
   const t = await sequelize.transaction();
@@ -186,6 +186,7 @@ const getCars = async (req, res) => {
           { model: Facility },
           { model: Gallery },
           { model: User },
+          {model:Review}
         ]
       });
       
