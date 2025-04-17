@@ -8,6 +8,7 @@ const UserDocument = sequelize.define("UserDocument", {
   },
   cnicOrPassportStatus: {
     type: DataTypes.STRING,
+    defaultValue:'pending',
     allowNull: true,     // e.g. 'pending', 'verified', etc.
   },
   drivingLicense: {
@@ -16,6 +17,7 @@ const UserDocument = sequelize.define("UserDocument", {
   },
   drivingLicenseStatus: {
     type: DataTypes.STRING,
+    defaultValue:'pending',
     allowNull: true,
   },
   companyDoc: {
@@ -24,6 +26,7 @@ const UserDocument = sequelize.define("UserDocument", {
   },
   companyDocStatus: {
     type: DataTypes.STRING,
+    defaultValue:'pending',
     allowNull: true,
   },
   role: {
