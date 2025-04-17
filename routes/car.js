@@ -5,8 +5,22 @@ const controllers = require("../controllers/index");
 const auth = require("../middleware/authMiddleware");
 const makeVisitor = require("../middleware/visitor");
 
-// Save or Update Car (if id is provided, update)
-router.post("/save", auth, upload("cars").array("images", 10), controllers.car.saveCar);
+const uploader = upload("cars");
+
+
+router.post(
+  "/save",
+  auth,
+  uploader.fields([
+    { name: "images", maxCount: 10 },
+    { name: "grayCard",               maxCount: 10 },
+    { name: "controlTechniqueFiles",  maxCount: 10 },
+    { name: "assuranceFiles",         maxCount: 10 },
+
+  ]),
+  controllers.car.saveCar
+);
+
 // Get all cars
 router.get("/",makeVisitor , controllers.car.getCars);
 router.get("/options", auth, controllers.car.getOptions);

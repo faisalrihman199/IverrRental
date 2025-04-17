@@ -3,15 +3,19 @@ const multer = require("multer");
 const path  = require("path");
 const fs    = require("fs");
 
-// which fields we treat as “docs”:
-const DOC_FIELDS = ["cnicOrPassport","drivingLicense","companyDoc"];
+// which fields we treat as “user” docs vs “car” docs
+const USER_DOC_FIELDS = ["cnicOrPassport","drivingLicense","companyDoc"];
+const CAR_DOC_FIELDS  = ["grayCard","controlTechniqueFiles","assuranceFiles"];
 
 const getStorage = (folder) => multer.diskStorage({
   destination: (req, file, cb) => {
-    // override the target folder for document uploads:
-    const targetFolder = DOC_FIELDS.includes(file.fieldname)
-      ? "userDocs"
-      : folder;
+    let targetFolder = folder;
+
+    if (USER_DOC_FIELDS.includes(file.fieldname)) {
+      targetFolder = "userDocs";
+    } else if (CAR_DOC_FIELDS.includes(file.fieldname)) {
+      targetFolder = "carDocs";
+    }
 
     const uploadPath = path.join(__dirname, `../public/uploads/${targetFolder}`);
     if (!fs.existsSync(uploadPath)) {
@@ -25,20 +29,31 @@ const getStorage = (folder) => multer.diskStorage({
   }
 });
 
-// your existing fileFilter + limits stay the same
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
-  if (allowedTypes.includes(file.mimetype)) {
+  const allowedTypes = [
+    // images
+    "image/jpeg","image/png","image/gif",
+    // text & csv
+    "text/plain","text/csv",
+    // pdf
+    "application/pdf",
+    // Microsoft Office
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    // video
+    "video/mp4","video/x-msvideo","video/mpeg","video/quicktime"
+  ]; 
+   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
     cb(new Error("Only JPEG, PNG, and GIF files are allowed"), false);
   }
 };
 
-const upload = (folder) => multer({
+module.exports = (folder) => multer({
   storage: getStorage(folder),
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024 },
 });
-
-module.exports = upload;

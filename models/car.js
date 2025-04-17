@@ -63,16 +63,6 @@ const Car = sequelize.define("Car", {
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
     },
-    carCityId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-            model: "Cities",
-            key: "id",
-        },
-        onUpdate: "CASCADE",
-        onDelete: "CASCADE",
-    },
     userId: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -127,6 +117,16 @@ const Car = sequelize.define("Car", {
         type: DataTypes.STRING,
         allowNull: false,
     },
+    freeCancellation: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    },
+    paymentAccepted: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+
+
 }, {
     timestamps: true,
 });

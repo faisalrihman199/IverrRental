@@ -19,6 +19,7 @@ const Review = require('./review');
 const Notification = require('./notification');
 const FavouritesCar = require('./FavouritesCar'); // Import the explicit FavouritesCar model
 const Insurance = require('./insurance');
+const CarDocument = require('./carDocuments');
 
 const models = {
     User,
@@ -37,15 +38,20 @@ const models = {
     Notification,
     UserDocument,
     Review,
-    Insurance
+    Insurance,
+    CarDocument
 };
 
 // Define relationships
 
 Car.hasMany(Review, { foreignKey: 'carId' });
-
-// In Review.js
 Review.belongsTo(Car, { foreignKey: 'carId' });
+
+Car.hasOne(CarDocument, { foreignKey: 'carId' });
+CarDocument.belongsTo(Car, { foreignKey: 'carId' });
+
+Car.hasMany(Insurance, { foreignKey: 'carId' });
+Insurance.belongsTo(Car, { foreignKey: 'carId' });
 
 // One-to-Many: User ↔ CarBrand
 User.hasMany(Car, { foreignKey: 'userId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
@@ -67,7 +73,6 @@ CarBrand.hasMany(Car, { foreignKey: 'carBrandId', onDelete: 'CASCADE', onUpdate:
 Car.belongsTo(CarBrand, { foreignKey: 'carBrandId' });
 
 
-
 // One-to-Many: Car ↔ City
 City.hasMany(Car, { foreignKey: 'carCityId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 Car.belongsTo(City, { foreignKey: 'carCityId' });
@@ -75,6 +80,9 @@ Car.belongsTo(City, { foreignKey: 'carCityId' });
 // Many-to-Many: Car ↔ Facility (Automatically creates a junction table)
 Car.belongsToMany(Facility, { through: 'CarFacilities', foreignKey: 'carId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 Facility.belongsToMany(Car, { through: 'CarFacilities', foreignKey: 'facilityId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
+Car.belongsToMany(City, { through: 'CarCities', foreignKey: 'carId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+City.belongsToMany(Car, { through: 'CarCities', foreignKey: 'cityId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 
 FavouritesCar.belongsTo(User, { foreignKey: 'userId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 FavouritesCar.belongsTo(Car, { foreignKey: 'carId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });

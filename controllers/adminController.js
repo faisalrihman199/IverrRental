@@ -3,7 +3,7 @@ const bcrypt = require("bcrypt");
 const sequelize = require("../config/db");
 const { Op } = require('sequelize');
 exports.register = async (req, res) => {
-    const { email, password,fullName,phone } = req.body;
+    const { email, password,firstName,lastName,phone } = req.body;
     const t = await sequelize.transaction();
 
     try {
@@ -13,7 +13,7 @@ exports.register = async (req, res) => {
         }
         const hashedPassword = await bcrypt.hash(password, 10);
         const user = await models.User.create(
-            { email, password: hashedPassword, role: "admin", phone,fullName },
+            { email, password: hashedPassword, role: "admin", phone,firstName,lastName },
             { transaction: t }
         );
         await t.commit();

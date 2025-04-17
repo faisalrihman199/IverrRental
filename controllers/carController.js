@@ -1,244 +1,265 @@
-const fs = require('fs');
-const path = require('path');
-const { Car, User,Gallery,Review, Facility, CarType, CarBrand, City, sequelize } = require('../models');
-
-const saveCar = async (req, res) => {
+const { Car, User, Gallery, Review, Facility, CarType, CarBrand, City, sequelize, Insurance } = require('../models');
+const fs = require("fs");
+const path = require("path");
+const models = require("../models");
+saveCar = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { id } = req.query;
     const {
-      name,
-      number,
-      driverName,
-      driverPhone,
-      rating,
-      status,
-      seat,
-      AC,
-      gearSystem,
-      carTypeId,
-      carBrandId,
-      carCityId,
-      rentWithDriver,
-      rentDriverLess,
-      engineHP,
-      priceType,
-      fuelType,
-      description,
-      pickupAddress,
-      latitude,
-      longitude,
-      drivenKM,
-      minHrsReq,
-      facilities
+      name, number, driverName, driverPhone, rating,
+      status, seat, AC, gearSystem, carTypeId, carBrandId,
+      carCityIds, rentWithDriver, rentDriverLess, engineHP,
+      priceType, fuelType, description, pickupAddress,
+      latitude, longitude, drivenKM, minHrsReq,
+      freeCancellation, paymentAccepted, facilities,
+      insurance, controlTechniqueText, assuranceText
     } = req.body;
     const userId = req.user.id;
-    const files = req.files;
-    
-    // For creating a new car, ensure at least one image is provided.
-    if (!id && (!files || files.length === 0)) {
+
+    // Normalize files array: support .array() or .fields() multer output
+    const filesRaw = req.files || [];
+    const allFiles = Array.isArray(filesRaw)
+      ? filesRaw
+      : Object.values(filesRaw).flat();
+
+    // 1) Validate images on create (fieldname 'images')
+    const imageFiles = allFiles.filter(f => f.fieldname === 'images');
+    if (!id && imageFiles.length === 0) {
       await t.rollback();
       return res.status(400).json({ success: false, message: "At least one car image is required." });
     }
-    
+
+    // 2) Process new car images
     let imagesJson;
-    if (files && files.length > 0) {
-      const imagePaths = files.map(file => `/uploads/cars/${file.filename}`);
+    if (imageFiles.length) {
+      const imagePaths = imageFiles.map(f => `/uploads/cars/${f.filename}`);
       imagesJson = JSON.stringify(imagePaths);
     }
-    
+
+    // 3) Create or update Car
     let car;
     if (id) {
-      car = await Car.findByPk(id, { transaction: t });
+      car = await models.Car.findByPk(id, { transaction: t });
       if (!car) {
         await t.rollback();
         return res.status(404).json({ success: false, message: "Car not found." });
       }
       if (req.user.role !== 'admin' && car.userId !== userId) {
         await t.rollback();
-        return res.status(403).json({ success: false, message: "You are not authorized to update this car." });
+        return res.status(403).json({ success: false, message: "Not authorized to update this car." });
       }
-      
-      const updateData = {};
-      if (name !== undefined) updateData.name = name;
-      if (number !== undefined) updateData.number = number;
-      if (status !== undefined) updateData.status = status;
-      if (seat !== undefined) updateData.seat = seat;
-      if (AC !== undefined) updateData.AC = AC;
-      if (driverName !== undefined) updateData.driverName = driverName;
-      if (driverPhone !== undefined) updateData.driverPhone = driverPhone;
-      if (rating !== undefined) updateData.rating = rating;
-      if (gearSystem !== undefined) updateData.gearSystem = gearSystem;
-      if (carTypeId !== undefined) updateData.carTypeId = carTypeId;
-      if (carBrandId !== undefined) updateData.carBrandId = carBrandId;
-      if (carCityId !== undefined) updateData.carCityId = carCityId;
-      if (rentWithDriver !== undefined) updateData.rentWithDriver = rentWithDriver;
-      if (rentDriverLess !== undefined) updateData.rentDriverLess = rentDriverLess;
-      if (engineHP !== undefined) updateData.engineHP = engineHP;
-      if (priceType !== undefined) updateData.priceType = priceType;
-      if (fuelType !== undefined) updateData.fuelType = fuelType;
-      if (description !== undefined) updateData.description = description;
-      if (pickupAddress !== undefined) updateData.pickupAddress = pickupAddress;
-      if (latitude !== undefined) updateData.latitude = latitude;
-      if (longitude !== undefined) updateData.longitude = longitude;
-      if (drivenKM !== undefined) updateData.drivenKM = drivenKM;
-      if (minHrsReq !== undefined) updateData.minHrsReq = minHrsReq;
-      
-      // Preserve the original userId if the updater is an admin
-      updateData.userId = req.user.role !== 'admin' ? userId : car.userId;
-      
-      // If new images are provided, delete old images and update the image field.
-      if (files && files.length > 0) {
+
+      const updateData = {
+        userId: req.user.role === 'admin' ? car.userId : userId
+      };
+      [ 'name','number','status','seat','AC','driverName','driverPhone','rating',
+        'gearSystem','carTypeId','carBrandId','rentWithDriver','rentDriverLess',
+        'engineHP','priceType','fuelType','description','pickupAddress','latitude',
+        'longitude','drivenKM','minHrsReq'
+      ].forEach(field => {
+        if (req.body[field] !== undefined) updateData[field] = req.body[field];
+      });
+      if (freeCancellation !== undefined) updateData.freeCancellation = freeCancellation;
+      if (paymentAccepted   !== undefined) updateData.paymentAccepted   = paymentAccepted;
+
+      if (imagesJson) {
         if (car.image) {
           try {
-            const oldImagePaths = JSON.parse(car.image);
-            oldImagePaths.forEach(image => {
-              const oldImagePath = path.join(__dirname, `../public${image}`);
-              if (fs.existsSync(oldImagePath)) {
-                fs.unlinkSync(oldImagePath);
-              }
+            const oldList = JSON.parse(car.image);
+            oldList.forEach(img => {
+              const p = path.join(__dirname, '../public', img.replace(/^\/+/, ''));
+              if (fs.existsSync(p)) fs.unlinkSync(p);
             });
-          } catch (err) {
-            console.error("Error parsing old image paths:", err);
-          }
+          } catch {}
         }
         updateData.image = imagesJson;
       }
-      
+
       await car.update(updateData, { transaction: t });
     } else {
-      car = await Car.create({
-        name,
-        number,
-        image: imagesJson,
-        status,
-        seat,
-        AC,
-        driverName,
-        driverPhone,
-        rating,
-        gearSystem,
-        carTypeId,
-        carBrandId,
-        carCityId,
-        rentWithDriver,
-        rentDriverLess,
-        engineHP,
-        priceType,
-        fuelType,
-        description,
-        pickupAddress,
-        latitude,
-        longitude,
-        drivenKM,
-        minHrsReq,
-        userId
+      car = await models.Car.create({
+        name, number, image: imagesJson, status, seat, AC,
+        driverName, driverPhone, rating, gearSystem,
+        carTypeId, carBrandId, rentWithDriver, rentDriverLess,
+        engineHP, priceType, fuelType, description, pickupAddress,
+        latitude, longitude, drivenKM, minHrsReq,
+        freeCancellation, paymentAccepted, userId
       }, { transaction: t });
     }
-    
-    let facilitiesArray = facilities;
-    if (facilities && typeof facilities === 'string') {
-      try {
-        facilitiesArray = JSON.parse(facilities);
-      } catch (err) {
+
+    // 4) Facilities
+    let facArray = facilities;
+    if (typeof facilities === 'string') {
+      try { facArray = JSON.parse(facilities); } catch {
         await t.rollback();
         return res.status(400).json({ success: false, message: "Invalid facilities format." });
       }
     }
-    if (facilitiesArray && Array.isArray(facilitiesArray)) {
-      await car.setFacilities(facilitiesArray, { transaction: t });
+    if (Array.isArray(facArray)) {
+      await car.setFacilities(facArray, { transaction: t });
     }
-    
+
+    // 5) CarCityIds
+    let cityArray = carCityIds;
+    if (typeof carCityIds === 'string') {
+      try { cityArray = JSON.parse(carCityIds); } catch {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: "Invalid carCityIds format." });
+      }
+    }
+    if (Array.isArray(cityArray)) {
+      await car.setCities(cityArray, { transaction: t });
+    }
+
+    // 6) Insurance
+    let insArr;
+    if (Array.isArray(insurance)) insArr = insurance;
+    else if (insurance && Array.isArray(insurance.insurances)) insArr = insurance.insurances;
+    else if (typeof insurance === 'string') {
+      try { insArr = JSON.parse(insurance); } catch {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: "Invalid insurance format." });
+      }
+    }
+    if (Array.isArray(insArr)) {
+      await models.Insurance.destroy({ where: { carId: car.id }, transaction: t });
+      const insData = insArr.map(item => ({ ...item, carId: car.id }));
+      await models.Insurance.bulkCreate(insData, { transaction: t });
+    }
+
+    // 7) CarDocument
+    const docFields = ['grayCard','controlTechniqueFiles','assuranceFiles'];
+    const textFields = { controlTechniqueText, assuranceText };
+    const filesByField = allFiles.reduce((acc, f) => {
+      if (docFields.includes(f.fieldname)) {
+        acc[f.fieldname] = acc[f.fieldname] || [];
+        acc[f.fieldname].push(f);
+      }
+      return acc;
+    }, {});
+
+    if (Object.keys(filesByField).length || Object.values(textFields).some(v=>v!==undefined)) {
+      const [doc] = await models.CarDocument.findOrCreate({
+        where: { carId: car.id }, defaults:{carId:car.id}, transaction: t
+      });
+      // text
+      Object.entries(textFields).forEach(([k,v])=>{ if(v!==undefined) doc[k]=v });
+      // files
+      for(const field of docFields){
+        const arr = filesByField[field]||[];
+        if(arr.length){
+          if(doc[field]){ try{JSON.parse(doc[field]).forEach(rel=>{const p=path.join(__dirname,'../public',rel.replace(/^\/+/,'')); if(fs.existsSync(p)) fs.unlinkSync(p);});}catch{}
+          }
+          doc[field]=JSON.stringify(arr.map(f=>`/uploads/carDocs/${f.filename}`));
+        }
+      }
+      await doc.save({ transaction: t });
+    }
+
     await t.commit();
-    if (id) {
-      return res.status(200).json({ success: true, message: "Car updated successfully.", car });
-    } else {
-      return res.status(201).json({ success: true, message: "Car created successfully.", car });
-    }
+    const msg = id?"Car updated successfully.":"Car created successfully.";
+    return res.status(id?200:201).json({ success:true, message:msg, car });
+
   } catch (error) {
     await t.rollback();
     console.error("Error in saveCar:", error);
+    return res.status(500).json({ success:false, message:error.message });
+  }
+};
+
+
+
+
+
+const getCars = async (req, res) => {
+  try {
+    const { id, status, carTypeId, carBrandId, carCityId, mine } = req.query;
+    const userId = req.user.id;
+    let whereClause = {};
+    if (mine) {
+      whereClause.userId = userId;
+    }
+    if (id)           whereClause.id         = id;
+    if (status)       whereClause.status     = status;
+    if (carTypeId)    whereClause.carTypeId  = carTypeId;
+    if (carBrandId)   whereClause.carBrandId = carBrandId;
+    if (carCityId)    whereClause.carCityId  = carCityId;
+
+    const cars = await Car.findAll({
+      where: whereClause,
+      include: [
+        CarType,
+        CarBrand,
+        City,
+        Facility,
+        Gallery,
+        User,
+        Insurance,
+        models.CarDocument
+      ]
+    });
+
+    const parsedCars = cars.map(car => {
+      const c = car.toJSON();
+
+      // images
+      let carImages = [], galleryImages = [];
+      if (c.image) {
+        try { carImages = JSON.parse(c.image); } catch {}
+      }
+      if (c.Gallery?.image) {
+        try { galleryImages = JSON.parse(c.Gallery.image); } catch {}
+      }
+      const combined = [...carImages, ...galleryImages];
+      c.images = combined;
+      c.image  = combined[0] || null;
+
+      // owner
+      c.owner = c.User?.fullName || null;
+
+      // documents: parse JSON strings into arrays
+      if (c.CarDocument) {
+        const doc = c.CarDocument;
+        const documents = {
+          grayCard:               [],
+          controlTechniqueText:   doc.controlTechniqueText || null,
+          controlTechniqueFiles:  [],
+          assuranceText:          doc.assuranceText       || null,
+          assuranceFiles:         []
+        };
+
+        // parse each file‐list field
+        ['grayCard','controlTechniqueFiles','assuranceFiles'].forEach(field => {
+          if (doc[field]) {
+            try {
+              documents[field] = JSON.parse(doc[field]);
+            } catch {}
+          }
+        });
+
+        c.documents = documents;
+      } else {
+        c.documents = null;
+      }
+
+      // clean up
+      delete c.Gallery;
+      delete c.User;
+      delete c.CarDocument;
+
+      return c;
+    });
+
+    return res.status(200).json({ success: true, data: parsedCars });
+  } catch (error) {
+    console.error("Error in getCars:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-const getCars = async (req, res) => {
-    try {
-      const { id, status, carTypeId, carBrandId, carCityId,mine } = req.query;
-      const userId = req.user.id;
-      let whereClause = {};
-      if(mine){
-        whereClause = { userId:userId };
-      }
-      
-      if (id) whereClause.id = id;
-      if (status) whereClause.status = status;
-      if (carTypeId) whereClause.carTypeId = carTypeId;
-      if (carBrandId) whereClause.carBrandId = carBrandId;
-      if (carCityId) whereClause.carCityId = carCityId;
-      
-      const cars = await Car.findAll({
-        where: whereClause,
-        include: [
-          { model: CarType },
-          { model: CarBrand },
-          { model: City },
-          { model: Facility },
-          { model: Gallery },
-          { model: User },
-          {model:Review}
-        ]
-      });
-      
-      const parsedCars = cars.map(car => {
-        const carObj = car.toJSON();
-        let carImages = [];
-        let galleryImages = [];
-        
-        // Parse images from car.image if available
-        if (carObj.image) {
-          try {
-            carImages = JSON.parse(carObj.image);
-          } catch (err) {
-            carImages = [];
-          }
-        }
-        
-        // Parse images from Gallery.image if available
-        if (carObj.Gallery && carObj.Gallery.image) {
-          try {
-            galleryImages = JSON.parse(carObj.Gallery.image);
-          } catch (err) {
-            galleryImages = [];
-          }
-        }
-        
-        // Combine both arrays
-        const combinedImages = [...carImages, ...galleryImages];
-        
-        // Set keys as required:
-        // 1. "images" will hold the entire array of images.
-        carObj.images = combinedImages;
-        // 2. "image" will hold the first image from the combined array (if any).
-        carObj.image = combinedImages.length > 0 ? combinedImages[0] : null;
-        // 3. "owner" will be set as user.fullName (from the included User model).
-        carObj.owner = carObj.User ? carObj.User.fullName : null;
-        
-        // Optionally remove the Gallery and User properties from the response.
-        delete carObj.Gallery;
-        delete carObj.User;
-        
-        return carObj;
-      });
-      
-      return res.status(200).json({ success: true, data: parsedCars });
-    } catch (error) {
-      console.error("Error in getCars:", error);
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  };
-  
-  
+
+
 
 const deleteCar = async (req, res) => {
   try {
@@ -296,84 +317,84 @@ const getOptions = async (req, res) => {
   }
 };
 const addCarImages = async (req, res) => {
-    const t = await sequelize.transaction();
-    try {
-      const { id } = req.query;
-      if (!id) {
-        await t.rollback();
-        return res.status(400).json({ success: false, message: "Car id is required." });
-      }
-      const car = await Car.findByPk(id, { transaction: t });
-      if (!car) {
-        await t.rollback();
-        return res.status(404).json({ success: false, message: "Car not found." });
-      }
-      let existingImages = [];
-      if (car.image) {
-        try {
-          existingImages = JSON.parse(car.image);
-        } catch (err) {
-          existingImages = [];
-        }
-      }
-      const newFiles = req.files;
-      if (!newFiles || newFiles.length === 0) {
-        await t.rollback();
-        return res.status(400).json({ success: false, message: "No new images provided." });
-      }
-      const newImagePaths = newFiles.map(file => `/uploads/cars/${file.filename}`);
-      const updatedImages = existingImages.concat(newImagePaths);
-      car.image = JSON.stringify(updatedImages);
-      await car.save({ transaction: t });
-      await t.commit();
-      return res.status(200).json({ success: true, message: "Car images added successfully", images: updatedImages });
-    } catch (error) {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.query;
+    if (!id) {
       await t.rollback();
-      console.error("Error in addCarImages:", error);
-      return res.status(500).json({ success: false, message: error.message });
+      return res.status(400).json({ success: false, message: "Car id is required." });
     }
-  };
-  
-  const removeCarImage = async (req, res) => {
-    const t = await sequelize.transaction();
-    try {
-      const { id, remove } = req.query;
-      if (!id || !remove) {
-        await t.rollback();
-        return res.status(400).json({ success: false, message: "Car id and image identifier to remove are required." });
-      }
-      const car = await Car.findByPk(id, { transaction: t });
-      if (!car) {
-        await t.rollback();
-        return res.status(404).json({ success: false, message: "Car not found." });
-      }
-      let existingImages = [];
-      if (car.image) {
-        try {
-          existingImages = JSON.parse(car.image);
-        } catch (err) {
-          existingImages = [];
-        }
-      }
-      // Filter out the image that matches the 'remove' parameter (comparing the file name)
-      const updatedImages = existingImages.filter(imagePath => path.basename(imagePath) !== remove);
-      const removedImages = existingImages.filter(imagePath => path.basename(imagePath) === remove);
-      removedImages.forEach(imagePath => {
-        const fullPath = path.join(__dirname, `../public${imagePath}`);
-        if (fs.existsSync(fullPath)) {
-          fs.unlinkSync(fullPath);
-        }
-      });
-      car.image = JSON.stringify(updatedImages);
-      await car.save({ transaction: t });
-      await t.commit();
-      return res.status(200).json({ success: true, message: "Car image removed successfully", images: updatedImages });
-    } catch (error) {
+    const car = await Car.findByPk(id, { transaction: t });
+    if (!car) {
       await t.rollback();
-      console.error("Error in removeCarImage:", error);
-      return res.status(500).json({ success: false, message: error.message });
+      return res.status(404).json({ success: false, message: "Car not found." });
     }
-  };
+    let existingImages = [];
+    if (car.image) {
+      try {
+        existingImages = JSON.parse(car.image);
+      } catch (err) {
+        existingImages = [];
+      }
+    }
+    const newFiles = req.files;
+    if (!newFiles || newFiles.length === 0) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: "No new images provided." });
+    }
+    const newImagePaths = newFiles.map(file => `/uploads/cars/${file.filename}`);
+    const updatedImages = existingImages.concat(newImagePaths);
+    car.image = JSON.stringify(updatedImages);
+    await car.save({ transaction: t });
+    await t.commit();
+    return res.status(200).json({ success: true, message: "Car images added successfully", images: updatedImages });
+  } catch (error) {
+    await t.rollback();
+    console.error("Error in addCarImages:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const removeCarImage = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id, remove } = req.query;
+    if (!id || !remove) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: "Car id and image identifier to remove are required." });
+    }
+    const car = await Car.findByPk(id, { transaction: t });
+    if (!car) {
+      await t.rollback();
+      return res.status(404).json({ success: false, message: "Car not found." });
+    }
+    let existingImages = [];
+    if (car.image) {
+      try {
+        existingImages = JSON.parse(car.image);
+      } catch (err) {
+        existingImages = [];
+      }
+    }
+    // Filter out the image that matches the 'remove' parameter (comparing the file name)
+    const updatedImages = existingImages.filter(imagePath => path.basename(imagePath) !== remove);
+    const removedImages = existingImages.filter(imagePath => path.basename(imagePath) === remove);
+    removedImages.forEach(imagePath => {
+      const fullPath = path.join(__dirname, `../public${imagePath}`);
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+      }
+    });
+    car.image = JSON.stringify(updatedImages);
+    await car.save({ transaction: t });
+    await t.commit();
+    return res.status(200).json({ success: true, message: "Car image removed successfully", images: updatedImages });
+  } catch (error) {
+    await t.rollback();
+    console.error("Error in removeCarImage:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 module.exports = {
   saveCar,
