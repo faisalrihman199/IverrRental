@@ -5,7 +5,9 @@ const sequelize = require("../config/db");
 function generateOTP(email) {
     const otp = speakeasy.totp({
         secret: email,  
-        encoding: 'base32'
+        encoding: 'base32',
+        step: 300,       
+        digits: 6   
     });
     console.log(otp);
     return otp;
