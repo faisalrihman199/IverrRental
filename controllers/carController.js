@@ -199,6 +199,7 @@ const getCars = async (req, res) => {
           attributes: ['firstName', 'lastName']
         },
         Insurance,
+        models.Calendar,
         models.CarDocument
       ]
     });

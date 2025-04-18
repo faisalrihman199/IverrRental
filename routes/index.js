@@ -19,6 +19,7 @@ var review = require("./review");
 var insurance = require("./insurance"); 
 var favouriteCars = require("./favouritecars"); 
 var notifications = require("./notifications"); 
+var calender = require("./calender"); 
 
 router.get('/', function(req, res, next) {
   res.send("Iverr Project is running");
@@ -42,5 +43,6 @@ router.use("/review", review);
 router.use("/insurance", insurance); 
 router.use("/favouritecars", favouriteCars); 
 router.use("/notifications", notifications); 
+router.use("/calender", calender); 
 
 module.exports = router;

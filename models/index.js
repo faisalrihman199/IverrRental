@@ -20,6 +20,7 @@ const Notification = require('./notification');
 const FavouritesCar = require('./FavouritesCar'); // Import the explicit FavouritesCar model
 const Insurance = require('./insurance');
 const CarDocument = require('./carDocuments');
+const Calendar = require('./calender');
 
 const models = {
     User,
@@ -39,13 +40,17 @@ const models = {
     UserDocument,
     Review,
     Insurance,
-    CarDocument
+    CarDocument,
+    Calendar
 };
 
 // Define relationships
 
 Car.hasMany(Review, { foreignKey: 'carId' });
 Review.belongsTo(Car, { foreignKey: 'carId' });
+
+Car.hasMany(Calendar, { foreignKey: 'carId' });
+Calendar.belongsTo(Car, { foreignKey: 'carId' });
 
 Car.hasOne(CarDocument, { foreignKey: 'carId' });
 CarDocument.belongsTo(Car, { foreignKey: 'carId' });

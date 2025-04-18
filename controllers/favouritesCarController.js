@@ -89,6 +89,14 @@ const getFavouriteCars = async (req, res) => {
             galleryImages = [];
           }
         }
+        if (typeof carObj.locationInfo === 'string') {
+          try {
+            carObj.locationInfo = JSON.parse(carObj.locationInfo);
+          } catch {
+            carObj.locationInfo = [];
+          }
+        }
+       
 
 
         const combinedImages = [...carImages, ...galleryImages];
