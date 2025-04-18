@@ -59,6 +59,7 @@ const getFavouriteCars = async (req, res) => {
             {model:models.CarBrand},
             {model:models.CarType},
             {model:models.City},
+            {model:models.Review},
             {
               model: models.User,
               attributes: ['firstName', 'lastName']
@@ -81,7 +82,13 @@ const getFavouriteCars = async (req, res) => {
             carImages = [];
           }
         }
-
+        const c=carObj;
+        if (Array.isArray(c.Reviews) && c.Reviews.length > 0) {
+          const totalRating = c.Reviews.reduce((sum, review) => sum + (review.rating || 0), 0);
+          c.averageRating = parseFloat((totalRating / c.Reviews.length).toFixed(1)); // e.g., 4.3
+        } else {
+          c.averageRating = null; // or 0 if you prefer
+        }
         if (carObj.Gallery && carObj.Gallery.image) {
           try {
             galleryImages = JSON.parse(carObj.Gallery.image);
