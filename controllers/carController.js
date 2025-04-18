@@ -206,7 +206,7 @@ const getCars = async (req, res) => {
 
     const parsedCars = cars.map(car => {
       const c = car.toJSON();
-
+      
       // images
       let carImages = [], galleryImages = [];
       if (c.image) {
@@ -246,6 +246,14 @@ const getCars = async (req, res) => {
       } else {
         c.documents = null;
       }
+      if (typeof c.locationInfo === 'string') {
+        try {
+          c.locationInfo = JSON.parse(c.locationInfo);
+        } catch {
+          c.locationInfo = [];
+        }
+      }
+     
 
       // clean up
       delete c.Gallery;
