@@ -59,8 +59,10 @@ const getFavouriteCars = async (req, res) => {
             {model:models.CarBrand},
             {model:models.CarType},
             {model:models.City},
-            { model: models.User, attributes: ["fullName"] }
-          ]
+            {
+              model: models.User,
+              attributes: ['firstName', 'lastName']
+            },          ]
         }
       ]
     });
@@ -88,10 +90,11 @@ const getFavouriteCars = async (req, res) => {
           }
         }
 
+
         const combinedImages = [...carImages, ...galleryImages];
         carObj.images = combinedImages;
         carObj.image = combinedImages.length > 0 ? combinedImages[0] : null;
-        carObj.owner = carObj.User ? carObj.User.fullName : null;
+        carObj.owner = carObj.User
         delete carObj.Gallery;
         delete carObj.User;
         return carObj;

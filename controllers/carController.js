@@ -13,7 +13,7 @@ saveCar = async (req, res) => {
       priceType, fuelType, description, pickupAddress,
       latitude, longitude, drivenKM, minHrsReq,
       freeCancellation, paymentAccepted, facilities,
-      insurance, controlTechniqueText, assuranceText
+      insurance, controlTechniqueText, assuranceText,locationInfo
     } = req.body;
     const userId = req.user.id;
 
