@@ -56,7 +56,7 @@ saveCar = async (req, res) => {
       [ 'name','number','status','seat','AC','driverName','driverPhone','rating',
         'gearSystem','carTypeId','carBrandId','rentWithDriver','rentDriverLess',
         'engineHP','priceType','fuelType','description','pickupAddress','latitude',
-        'longitude','drivenKM','minHrsReq'
+        'longitude','drivenKM','minHrsReq','locationInfo'
       ].forEach(field => {
         if (req.body[field] !== undefined) updateData[field] = req.body[field];
       });
@@ -84,7 +84,7 @@ saveCar = async (req, res) => {
         carTypeId, carBrandId, rentWithDriver, rentDriverLess,
         engineHP, priceType, fuelType, description, pickupAddress,
         latitude, longitude, drivenKM, minHrsReq,
-        freeCancellation, paymentAccepted, userId
+        freeCancellation, paymentAccepted, userId,locationInfo
       }, { transaction: t });
     }
 
@@ -194,11 +194,15 @@ const getCars = async (req, res) => {
         City,
         Facility,
         Gallery,
-        User,
+        {
+          model: User,
+          attributes: ['firstName', 'lastName']
+        },
         Insurance,
         models.CarDocument
       ]
     });
+    
 
     const parsedCars = cars.map(car => {
       const c = car.toJSON();
@@ -216,7 +220,7 @@ const getCars = async (req, res) => {
       c.image  = combined[0] || null;
 
       // owner
-      c.owner = c.User?.fullName || null;
+      c.owner = c.User;
 
       // documents: parse JSON strings into arrays
       if (c.CarDocument) {

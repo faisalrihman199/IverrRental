@@ -29,7 +29,7 @@ const Car = sequelize.define("Car", {
     },
     AC: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
     },
     driverName: {
         type: DataTypes.STRING,
@@ -41,7 +41,7 @@ const Car = sequelize.define("Car", {
     },
     gearSystem: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
     },
     carTypeId: {
         type: DataTypes.INTEGER,
@@ -75,39 +75,43 @@ const Car = sequelize.define("Car", {
     },
     rentWithDriver: {
         type: DataTypes.FLOAT,
-        allowNull: false,
+        allowNull: true,
     },
     rentDriverLess: {
         type: DataTypes.FLOAT,
-        allowNull: false,
+        allowNull: true,
     },
     engineHP: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
     },
     priceType: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
     },
     fuelType: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
     },
     description: {
         type: DataTypes.TEXT,
         allowNull: true,
     },
+    locationInfo: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+    },
     pickupAddress: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
     },
     latitude: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
     },
     longitude: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
     },
     drivenKM: {
         type: DataTypes.STRING,
@@ -115,7 +119,7 @@ const Car = sequelize.define("Car", {
     },
     minHrsReq: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
     },
     freeCancellation: {
         type: DataTypes.INTEGER,

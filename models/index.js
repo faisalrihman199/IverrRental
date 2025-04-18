@@ -73,9 +73,7 @@ CarBrand.hasMany(Car, { foreignKey: 'carBrandId', onDelete: 'CASCADE', onUpdate:
 Car.belongsTo(CarBrand, { foreignKey: 'carBrandId' });
 
 
-// One-to-Many: Car ↔ City
-City.hasMany(Car, { foreignKey: 'carCityId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
-Car.belongsTo(City, { foreignKey: 'carCityId' });
+
 
 // Many-to-Many: Car ↔ Facility (Automatically creates a junction table)
 Car.belongsToMany(Facility, { through: 'CarFacilities', foreignKey: 'carId', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
