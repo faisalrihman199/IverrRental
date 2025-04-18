@@ -141,7 +141,7 @@ const saveBooking = async (req, res) => {
 
 const getBookings = async (req, res) => {
   try {
-    const { carId, userId, startDate, endDate, startTime, endTime, status, driver } = req.query;
+    const { carId, userId, startDate, endDate, startTime, endTime, status, driver,reservation } = req.query;
     const currentUserId = req.user.id;
     const isAdmin = req.user.role === "admin";
     let whereClause = {};

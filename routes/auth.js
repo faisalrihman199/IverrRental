@@ -22,7 +22,7 @@ router.post('/changeEmail', authenticateToken,controllers.auth.changeEmail);
 router.post('/update', authenticateToken,uploader.fields([{ name: "image",maxCount: 1 }, // profile pic
     { name: "cnicOrPassport", maxCount: 5 },
     { name: "drivingLicense", maxCount: 5 },
-    { name: "companyDoc",     maxCount: 5 },
+    { name: "companyDoc",     maxCount: 5  },
   ]),
   // <-- map the image array back to req.file so your controller is unchanged
   (req, res, next) => {
