@@ -108,7 +108,7 @@ exports.saveCalendar = async (req, res) => {
           carId
         }, { transaction: t });
       }
-  
+      
       await t.commit();
       return res.status(200).json({ success: true, data: entry });
   

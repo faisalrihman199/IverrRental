@@ -158,6 +158,10 @@ saveCar = async (req, res) => {
     }
 
     await t.commit();
+    const createCalender=await models.Calendar.create({
+      carId:car.id,
+      startDate:car.createdAt
+    })
     const msg = id?"Car updated successfully.":"Car created successfully.";
     return res.status(id?200:201).json({ success:true, message:msg, car });
 
