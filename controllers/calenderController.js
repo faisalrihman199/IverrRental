@@ -12,11 +12,11 @@ const { Op } = require('sequelize');
 exports.saveCalendar = async (req, res) => {
     const t = await sequelize.transaction();
     try {
-      const id = req.query.id;
+      let id = req.query.id;
       const { startDate, endDate, status, specialPrice, carId } = req.body;
       const userId = req.user.id;
       const isAdmin = req.user.role === 'admin';
-  
+        
       // carId required
       if (!carId) {
         await t.rollback();
@@ -35,7 +35,12 @@ exports.saveCalendar = async (req, res) => {
       }
   
       let entry;
-      if (id) {
+      const carExist = await models.Calendar.findOne({
+        where: { carId }
+      });
+      
+      if (id || carExist) {
+        id=carExist.id;
         // UPDATE flow
         entry = await models.Calendar.findByPk(id, { transaction: t });
         if (!entry) {

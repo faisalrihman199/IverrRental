@@ -15,7 +15,7 @@ const Calendar = sequelize.define("Calendar", {
   },
   endDate: {
     type: DataTypes.DATEONLY,
-    allowNull: false,
+    allowNull: true,
   },
   status: {
     type: DataTypes.STRING,
