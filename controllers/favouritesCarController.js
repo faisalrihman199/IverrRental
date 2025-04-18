@@ -60,10 +60,13 @@ const getFavouriteCars = async (req, res) => {
             {model:models.CarType},
             {model:models.City},
             {model:models.Review},
+            {model:models.Calendar},
+            {model:models.CarDocument},
             {
               model: models.User,
               attributes: ['firstName', 'lastName']
-            },          ]
+            },        
+            ]
         }
       ]
     });
@@ -103,6 +106,29 @@ const getFavouriteCars = async (req, res) => {
             carObj.locationInfo = [];
           }
         }
+        if (c.CarDocument) {
+          const doc = c.CarDocument;
+          const documents = {
+            grayCard:               [],
+            controlTechniqueText:   doc.controlTechniqueText || null,
+            controlTechniqueFiles:  [],
+            assuranceText:          doc.assuranceText       || null,
+            assuranceFiles:         []
+          };
+  
+          // parse each file‐list field
+          ['grayCard','controlTechniqueFiles','assuranceFiles'].forEach(field => {
+            if (doc[field]) {
+              try {
+                documents[field] = JSON.parse(doc[field]);
+              } catch {}
+            }
+          });
+  
+          c.documents = documents;
+        } else {
+          c.documents = null;
+        }
        
 
 
@@ -111,8 +137,10 @@ const getFavouriteCars = async (req, res) => {
         carObj.image = combinedImages.length > 0 ? combinedImages[0] : null;
         carObj.owner = carObj.User
         delete carObj.Gallery;
+        delete carObj.CarDocument;
         delete carObj.User;
         return carObj;
+
       })
       .filter(car => car !== null);
 
