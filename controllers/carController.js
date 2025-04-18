@@ -200,14 +200,20 @@ const getCars = async (req, res) => {
         },
         Insurance,
         models.Calendar,
-        models.CarDocument
+        models.CarDocument,
+        models.Review
       ]
     });
     
 
     const parsedCars = cars.map(car => {
       const c = car.toJSON();
-      
+      if (Array.isArray(c.Reviews) && c.Reviews.length > 0) {
+        const totalRating = c.Reviews.reduce((sum, review) => sum + (review.rating || 0), 0);
+        c.averageRating = parseFloat((totalRating / c.Reviews.length).toFixed(1)); // e.g., 4.3
+      } else {
+        c.averageRating = null; // or 0 if you prefer
+      }
       // images
       let carImages = [], galleryImages = [];
       if (c.image) {
