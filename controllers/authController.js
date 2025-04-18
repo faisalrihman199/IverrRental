@@ -264,7 +264,7 @@ const authController = {
     
         // 1) fetch basic user info
         const user = await models.User.findByPk(userId, {
-          attributes: ['firstName','lastName','email','phone','image']
+          attributes: ['firstName','lastName','email','phone','image','bankAccount','description']
         });
         if (!user) {
           return res
