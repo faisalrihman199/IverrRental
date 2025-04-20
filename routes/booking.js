@@ -9,6 +9,7 @@ router.post("/save", auth, controllers.booking.saveBooking);
 
 // Get All FAQs or by ID or Status
 router.get("/", auth, controllers.booking.getBookings);
+router.get("/service_fee", controllers.auth.serviceFee);
 router.get("/coming", auth, controllers.booking.getComingBookings);
 
 // Delete FAQ

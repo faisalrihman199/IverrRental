@@ -328,6 +328,9 @@ const authController = {
           .json({ success: false, message: "Internal server error" });
       }
     },
+    serviceFee:async(req,res)=>{
+      return res.status(200).json({status:true,data:"5%"});
+    },
        
     getNonAdminUsers: async (req, res) => {
         try {
