@@ -279,7 +279,7 @@ getBookings = async (req, res) => {
         },
         {
           model: User,
-          attributes: ["id", "firstName", "lastName",'phone']
+          attributes: ["id", "firstName", "lastName", "phone"]
         },
         {
           model: BookingDocument
@@ -337,8 +337,7 @@ getBookings = async (req, res) => {
         dropOffOTP:      b.dropOffOTP,
         carName:         car.name,
         carImage,
-        customerName:    user.fullName,
-        customerPhone:   user.phone,
+        customer:user,
         documents: {
           carPickDocs:      parseArr("carPickDocs"),
           personPickDocs:   parseArr("personPickDocs"),
