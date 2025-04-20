@@ -1,6 +1,6 @@
 const models = require("../models");
-const { Booking,Car,BookingDocument,User,Calendar } = require("../models");
-const { Op } = require("sequelize");
+const { Booking, Car, BookingDocument, User, Calendar } = require("../models");
+const { Op, json } = require("sequelize");
 const { addNotification } = require("./notificationController");
 
 function formatDate(date) {
@@ -19,8 +19,8 @@ saveBooking = async (req, res) => {
   const transaction = await models.sequelize.transaction();
   try {
     const { id, pickup, dropoff } = req.query;
-    const userId   = req.user.id;
-    const isAdmin  = req.user.role === "admin";
+    const userId = req.user.id;
+    const isAdmin = req.user.role === "admin";
     // Destructure body
     const {
       carId, status, rentPrice, totalPrice, discount,
@@ -31,9 +31,9 @@ saveBooking = async (req, res) => {
     // Validate on create
     if (!id) {
       const required = [
-        'carId','totalPrice','discount',
-        'pickupCity','dropOffCity','insuranceFee','serviceFee',
-        'paymentMethod','pickDate','pickTime','returnDate','returnTime'
+        'carId', 'totalPrice', 'discount',
+        'pickupCity', 'dropOffCity', 'insuranceFee', 'serviceFee',
+        'paymentMethod', 'pickDate', 'pickTime', 'returnDate', 'returnTime'
       ];
       const missing = required.filter(f => req.body[f] == null);
       if (missing.length) {
@@ -62,8 +62,8 @@ saveBooking = async (req, res) => {
     const overlapCond = {
       carId,
       [Op.and]: [
-        { pickDate:   { [Op.lte]: returnDate } },
-        { returnDate: { [Op.gte]: pickDate   } }
+        { pickDate: { [Op.lte]: returnDate } },
+        { returnDate: { [Op.gte]: pickDate } }
       ]
     };
     if (id) overlapCond.id = { [Op.ne]: id };
@@ -85,10 +85,11 @@ saveBooking = async (req, res) => {
         await transaction.rollback();
         return res.status(404).json({ success: false, message: "Booking not found." });
       }
-      oldPick   = booking.pickDate;
+      oldPick = booking.pickDate;
       oldReturn = booking.returnDate;
 
-      const updateData = { carId, status, rentPrice, totalPrice, discount,
+      const updateData = {
+        carId, status, rentPrice, totalPrice, discount,
         pickupCity, dropOffCity, insuranceFee, serviceFee, paymentMethod,
         pickDate, pickTime, returnDate, returnTime
       };
@@ -116,26 +117,26 @@ saveBooking = async (req, res) => {
 
     // Handle BookingDocument
     const docFields = [
-      "carPickDocs","personPickDocs",
-      "carDropDocs","personDropDocs"
+      "carPickDocs", "personPickDocs",
+      "carDropDocs", "personDropDocs"
     ];
     const filesRaw = req.files || {};
     const filesByField = Array.isArray(filesRaw)
-      ? filesRaw.reduce((a,f)=>{
-          if(docFields.includes(f.fieldname)){
-            a[f.fieldname]=a[f.fieldname]||[]; a[f.fieldname].push(f);
-          }
-          return a;
-        },{})
-      : Object.entries(filesRaw).reduce((a,[field,arr])=>{
-          if(docFields.includes(field)) a[field]=arr;
-          return a;
-        },{});
+      ? filesRaw.reduce((a, f) => {
+        if (docFields.includes(f.fieldname)) {
+          a[f.fieldname] = a[f.fieldname] || []; a[f.fieldname].push(f);
+        }
+        return a;
+      }, {})
+      : Object.entries(filesRaw).reduce((a, [field, arr]) => {
+        if (docFields.includes(field)) a[field] = arr;
+        return a;
+      }, {});
 
     if (
-      docFields.some(f=> (filesByField[f]||[]).length>0 ) ||
-      pickDescription!==undefined ||
-      dropDescription!==undefined
+      docFields.some(f => (filesByField[f] || []).length > 0) ||
+      pickDescription !== undefined ||
+      dropDescription !== undefined
     ) {
       const [doc] = await BookingDocument.findOrCreate({
         where: { bookingId: booking.id },
@@ -144,22 +145,22 @@ saveBooking = async (req, res) => {
       });
 
       // descriptions
-      if (pickDescription  !== undefined) doc.pickDescription  = pickDescription;
-      if (dropDescription  !== undefined) doc.dropDescription  = dropDescription;
+      if (pickDescription !== undefined) doc.pickDescription = pickDescription;
+      if (dropDescription !== undefined) doc.dropDescription = dropDescription;
 
       // files arrays
       for (const f of docFields) {
-        const arr = filesByField[f]||[];
+        const arr = filesByField[f] || [];
         if (arr.length) {
           if (doc[f]) {
             try {
-              JSON.parse(doc[f]).forEach(rel=>{
-                const p = path.join(__dirname,"../public",rel.replace(/^\/+/,""));
+              JSON.parse(doc[f]).forEach(rel => {
+                const p = path.join(__dirname, "../public", rel.replace(/^\/+/, ""));
                 if (fs.existsSync(p)) fs.unlinkSync(p);
               });
-            } catch{}
+            } catch { }
           }
-          doc[f] = JSON.stringify(arr.map(file=>`/uploads/bookingDocs/${file.filename}`));
+          doc[f] = JSON.stringify(arr.map(file => `/uploads/bookingDocs/${file.filename}`));
         }
       }
       await doc.save({ transaction });
@@ -174,15 +175,15 @@ saveBooking = async (req, res) => {
       });
       if (cal) {
         cal.startDate = pickDate;
-        cal.endDate   = returnDate;
-        cal.status    = "booked";
+        cal.endDate = returnDate;
+        cal.status = "booked";
         await cal.save({ transaction });
       } else {
         await Calendar.create({
           carId,
           startDate: pickDate,
-          endDate:   returnDate,
-          status:    "booked"
+          endDate: returnDate,
+          status: "booked"
         }, { transaction });
       }
     } else {
@@ -190,8 +191,8 @@ saveBooking = async (req, res) => {
       await Calendar.create({
         carId,
         startDate: pickDate,
-        endDate:   returnDate,
-        status:    "booked"
+        endDate: returnDate,
+        status: "booked"
       }, { transaction });
     }
 
@@ -222,7 +223,7 @@ getBookings = async (req, res) => {
     } = req.query;
 
     const currentUserId = req.user.id;
-    const isAdmin       = req.user.role === "admin";
+    const isAdmin = req.user.role === "admin";
 
     // Build where clause
     const where = {};
@@ -237,13 +238,13 @@ getBookings = async (req, res) => {
       where.userId = qUserId;
     }
 
-    if (carId)  where.carId  = carId;
+    if (carId) where.carId = carId;
     if (status) where.status = status;
 
     // date overlap filtering
     if (startDate && endDate) {
       where[Op.and] = [
-        { pickDate:   { [Op.lte]: endDate   } },
+        { pickDate: { [Op.lte]: endDate } },
         { returnDate: { [Op.gte]: startDate } }
       ];
     } else if (startDate) {
@@ -254,8 +255,8 @@ getBookings = async (req, res) => {
 
     // time window filtering
     if (startTime && endTime) {
-      where.pickTime   = { [Op.gte]: startTime };
-      where.returnTime = { [Op.lte]: endTime   };
+      where.pickTime = { [Op.gte]: startTime };
+      where.returnTime = { [Op.lte]: endTime };
     } else if (startTime) {
       where.pickTime = { [Op.gte]: startTime };
     } else if (endTime) {
@@ -275,11 +276,17 @@ getBookings = async (req, res) => {
       include: [
         {
           model: Car,
-          attributes: ["id", "name", "image", "userId"]
+          attributes: ["id", "name", "image", "userId"],
+          include: [
+            {
+              model: User,
+              attributes: ["id", "firstName", "lastName", "email", 'phone']
+            }
+          ]
         },
         {
           model: User,
-          attributes: ["id", "firstName", "lastName", "phone"]
+          attributes: ["id", "firstName", "lastName", "phone", 'email']
         },
         {
           model: BookingDocument
@@ -307,7 +314,7 @@ getBookings = async (req, res) => {
       // First car image
       let carImage = null;
       if (car.image) {
-        try { carImage = JSON.parse(car.image)[0]; } catch {}
+        try { carImage = JSON.parse(car.image)[0]; } catch { }
       }
 
       // Parse document arrays
@@ -315,38 +322,58 @@ getBookings = async (req, res) => {
         try { return JSON.parse(doc[key] || "[]"); }
         catch { return []; }
       };
+      // inside your bookings.map(...)
+      const rawImages = car.image;
+      let images = [];
+      if (typeof rawImages === 'string') {
+        try {
+          images = JSON.parse(rawImages);
+        } catch (_) {
+          images = [];
+        }
+      } else if (Array.isArray(rawImages)) {
+        images = rawImages;
+      }
 
       return {
-        id:              b.id,
-        carId:           b.carId,
-        userId:          b.userId,
-        status:          b.status,
-        rentPrice:       b.rentPrice,
-        totalPrice:      b.totalPrice,
-        discount:        b.discount,
-        pickupCity:      b.pickupCity,
-        dropOffCity:     b.dropOffCity,
-        insuranceFee:    b.insuranceFee,
-        serviceFee:      b.serviceFee,
-        paymentMethod:   b.paymentMethod,
-        pickDate:        b.pickDate,
-        pickTime:        fmtTime(b.pickTime),
-        dropDate:        b.returnDate,
-        dropTime:        fmtTime(b.returnTime),
-        pickupOTP:       b.pickupOTP,
-        dropOffOTP:      b.dropOffOTP,
-        carName:         car.name,
-        carImage,
-        customer:user,
+        id: b.id,
+        carId: b.carId,
+        userId: b.userId,
+        status: b.status,
+        rentPrice: b.rentPrice,
+        totalPrice: b.totalPrice,
+        discount: b.discount,
+        pickupCity: b.pickupCity,
+        dropOffCity: b.dropOffCity,
+        insuranceFee: b.insuranceFee,
+        serviceFee: b.serviceFee,
+        paymentMethod: b.paymentMethod,
+        pickDate: b.pickDate,
+        pickTime: fmtTime(b.pickTime),
+        dropDate: b.returnDate,
+        dropTime: fmtTime(b.returnTime),
+        pickupOTP: b.pickupOTP,
+        dropOffOTP: b.dropOffOTP,
+
+        // embed car plus parsed images
+        car: {
+          ...car,
+          image:images
+        },
+
+        // booking customer
+        customer: user,
+
         documents: {
-          carPickDocs:      parseArr("carPickDocs"),
-          personPickDocs:   parseArr("personPickDocs"),
-          carDropDocs:      parseArr("carDropDocs"),
-          personDropDocs:   parseArr("personDropDocs"),
-          pickDescription:  doc.pickDescription || null,
-          dropDescription:  doc.dropDescription || null
+          carPickDocs: parseArr("carPickDocs"),
+          personPickDocs: parseArr("personPickDocs"),
+          carDropDocs: parseArr("carDropDocs"),
+          personDropDocs: parseArr("personDropDocs"),
+          pickDescription: doc.pickDescription || null,
+          dropDescription: doc.dropDescription || null
         }
       };
+
     });
 
     return res.status(200).json({ success: true, data });
