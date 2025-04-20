@@ -71,80 +71,109 @@ const getFavouriteCars = async (req, res) => {
       ]
     });
 
-    const parsedFavouriteCars = favourites
-      .map(fav => {
+    const fetchCityName = async (id) => {
+      return await models.City.findByPk(id);
+    };
+    
+    const parsedFavouriteCars = await Promise.all(
+      favourites.map(async fav => {
         if (!fav.Car) return null;
+    
         const carObj = fav.Car.toJSON();
         let carImages = [];
         let galleryImages = [];
-
+    
+        // Parse car images
         if (carObj.image) {
           try {
             carImages = JSON.parse(carObj.image);
-          } catch (err) {
+          } catch {
             carImages = [];
           }
         }
-        const c=carObj;
+    
+        // Average rating
+        const c = carObj;
         if (Array.isArray(c.Reviews) && c.Reviews.length > 0) {
           const totalRating = c.Reviews.reduce((sum, review) => sum + (review.rating || 0), 0);
-          c.averageRating = parseFloat((totalRating / c.Reviews.length).toFixed(1)); // e.g., 4.3
+          c.averageRating = parseFloat((totalRating / c.Reviews.length).toFixed(1));
         } else {
-          c.averageRating = null; // or 0 if you prefer
+          c.averageRating = null;
         }
-        if (carObj.Gallery && carObj.Gallery.image) {
+    
+        // Parse gallery images
+        if (carObj.Gallery?.image) {
           try {
             galleryImages = JSON.parse(carObj.Gallery.image);
-          } catch (err) {
+          } catch {
             galleryImages = [];
           }
         }
+    
+        // Parse locationInfo and fetch city names
         if (typeof carObj.locationInfo === 'string') {
           try {
             carObj.locationInfo = JSON.parse(carObj.locationInfo);
+    
+            if (Array.isArray(carObj.locationInfo)) {
+              for (const loc of carObj.locationInfo) {
+                if (loc.cityId) {
+                  const city = await fetchCityName(parseInt(loc.cityId));
+                  loc.cityName = city?.name || null;
+                }
+              }
+            }
           } catch {
             carObj.locationInfo = [];
           }
         }
+    
+        // Parse car documents
         if (c.CarDocument) {
           const doc = c.CarDocument;
           const documents = {
-            grayCard:               [],
-            controlTechniqueText:   doc.controlTechniqueText || null,
-            controlTechniqueFiles:  [],
-            assuranceText:          doc.assuranceText       || null,
-            assuranceFiles:         []
+            grayCard: [],
+            controlTechniqueText: doc.controlTechniqueText || null,
+            controlTechniqueFiles: [],
+            assuranceText: doc.assuranceText || null,
+            assuranceFiles: []
           };
-  
-          // parse each file‐list field
-          ['grayCard','controlTechniqueFiles','assuranceFiles'].forEach(field => {
+    
+          ['grayCard', 'controlTechniqueFiles', 'assuranceFiles'].forEach(field => {
             if (doc[field]) {
               try {
                 documents[field] = JSON.parse(doc[field]);
               } catch {}
             }
           });
-  
+    
           c.documents = documents;
         } else {
           c.documents = null;
         }
-       
-
-
+    
+        // Combine images
         const combinedImages = [...carImages, ...galleryImages];
         carObj.images = combinedImages;
         carObj.image = combinedImages.length > 0 ? combinedImages[0] : null;
-        carObj.owner = carObj.User
+    
+        // Owner
+        carObj.owner = carObj.User;
+    
+        // Clean up
         delete carObj.Gallery;
         delete carObj.CarDocument;
         delete carObj.User;
+    
         return carObj;
-
       })
-      .filter(car => car !== null);
+    );
+    
+    // Filter out nulls
+    const filteredFavouriteCars = parsedFavouriteCars.filter(car => car !== null);
+    
 
-    return res.status(200).json({ success: true, data: parsedFavouriteCars });
+    return res.status(200).json({ success: true, data: filteredFavouriteCars });
   } catch (error) {
     console.error("Error in getFavouriteCars:", error);
     return res.status(500).json({ success: false, message: "Internal server error." });

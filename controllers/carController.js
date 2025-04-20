@@ -209,16 +209,22 @@ const getCars = async (req, res) => {
       ]
     });
     
-
-    const parsedCars = cars.map(car => {
+    const fetchCityName = async (id) => {
+      return await models.City.findByPk(id);
+    };
+    
+    const parsedCars = await Promise.all(cars.map(async (car) => {
       const c = car.toJSON();
+    
+      // Average rating
       if (Array.isArray(c.Reviews) && c.Reviews.length > 0) {
         const totalRating = c.Reviews.reduce((sum, review) => sum + (review.rating || 0), 0);
-        c.averageRating = parseFloat((totalRating / c.Reviews.length).toFixed(1)); // e.g., 4.3
+        c.averageRating = parseFloat((totalRating / c.Reviews.length).toFixed(1));
       } else {
-        c.averageRating = null; // or 0 if you prefer
+        c.averageRating = null;
       }
-      // images
+    
+      // Images
       let carImages = [], galleryImages = [];
       if (c.image) {
         try { carImages = JSON.parse(c.image); } catch {}
@@ -228,54 +234,60 @@ const getCars = async (req, res) => {
       }
       const combined = [...carImages, ...galleryImages];
       c.images = combined;
-      c.image  = combined[0] || null;
-
-      // owner
+      c.image = combined[0] || null;
+    
+      // Owner
       c.owner = c.User;
-
-      // documents: parse JSON strings into arrays
+    
+      // Documents
       if (c.CarDocument) {
         const doc = c.CarDocument;
         const documents = {
-          grayCard:               [],
-          controlTechniqueText:   doc.controlTechniqueText || null,
-          controlTechniqueFiles:  [],
-          assuranceText:          doc.assuranceText       || null,
-          assuranceFiles:         []
+          grayCard: [],
+          controlTechniqueText: doc.controlTechniqueText || null,
+          controlTechniqueFiles: [],
+          assuranceText: doc.assuranceText || null,
+          assuranceFiles: []
         };
-
-        // parse each file‐list field
-        ['grayCard','controlTechniqueFiles','assuranceFiles'].forEach(field => {
+    
+        ['grayCard', 'controlTechniqueFiles', 'assuranceFiles'].forEach(field => {
           if (doc[field]) {
             try {
               documents[field] = JSON.parse(doc[field]);
             } catch {}
           }
         });
-
+    
         c.documents = documents;
       } else {
         c.documents = null;
       }
+    
+      // Location info
       if (typeof c.locationInfo === 'string') {
         try {
           c.locationInfo = JSON.parse(c.locationInfo);
-          cityName=models.findByPk(c.locationInfo.cityId);
-          
-          // c.locationInfo.cityName=cityName;
+          if (Array.isArray(c.locationInfo)) {
+            for (const loc of c.locationInfo) {
+              if (loc.cityId) {
+                const city = await fetchCityName(parseInt(loc.cityId));
+                loc.cityName = city?.name || null;
+              }
+            }
+          }
         } catch {
           c.locationInfo = [];
         }
       }
-     
-
-      // clean up
+    
+      // Clean up
       delete c.Gallery;
       delete c.User;
       delete c.CarDocument;
-
+    
       return c;
-    });
+    }));
+    
 
     return res.status(200).json({ success: true, data: parsedCars });
   } catch (error) {
