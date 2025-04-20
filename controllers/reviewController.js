@@ -93,9 +93,12 @@ exports.saveReview = async (req, res) => {
 
 exports.getReviews = async (req, res) => {
     try {
-      const { role, id: userId } = req.user;
+      let {userId}=req.query;
+      userId =userId || req.user;
+
       const query = { ...req.query };
-  
+      delete query.userId;
+      let role='admin'
       // Extract special 'reviewee' flag and remove it from filters
       const revieweeFlag = query.reviewee;
       delete query.reviewee;

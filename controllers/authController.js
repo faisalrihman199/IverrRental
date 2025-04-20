@@ -260,8 +260,10 @@ const authController = {
     },
     userInfo: async (req, res) => {
       try {
-        const userId = req.user.id;
-    
+
+        let {userId}=req.query;
+        userId =userId ||  req.user.id;
+        
         // 1) fetch basic user info
         const user = await models.User.findByPk(userId, {
           attributes: ['firstName','lastName','email','phone','image','bankAccount','description']
