@@ -212,39 +212,39 @@ saveBooking = async (req, res) => {
 getBookings = async (req, res) => {
   try {
     const {
-      carId,
       userId: qUserId,
+      reservation,
+      carId,
+      status,
       startDate,
       endDate,
       startTime,
-      endTime,
-      status,
-      reservation
+      endTime
     } = req.query;
 
-    const currentUserId = req.user.id;
-    const isAdmin = req.user.role === "admin";
+    // Determine the effective userId
+    const userId = qUserId || req.user.id;
 
-    // Build where clause
+    // Base where clause
     const where = {};
 
-    if (!isAdmin) {
-      // either the booking was made by them or it's for a car they own
-      where[Op.or] = [
-        { userId: currentUserId },
-        { "$Car.userId$": currentUserId }
-      ];
-    } else if (qUserId) {
-      where.userId = qUserId;
+    // Reservation logic:
+    // If reservation=true, show bookings for cars the user owns.
+    // Otherwise show bookings the user made.
+    if (reservation === "true") {
+      where["$Car.userId$"] = userId;
+    } else {
+      where.userId = userId;
     }
 
-    if (carId) where.carId = carId;
+    // Additional optional filters
+    if (carId)  where.carId  = carId;
     if (status) where.status = status;
 
-    // date overlap filtering
+    // Date overlap filtering
     if (startDate && endDate) {
       where[Op.and] = [
-        { pickDate: { [Op.lte]: endDate } },
+        { pickDate:   { [Op.lte]: endDate   } },
         { returnDate: { [Op.gte]: startDate } }
       ];
     } else if (startDate) {
@@ -253,40 +253,31 @@ getBookings = async (req, res) => {
       where.returnDate = { [Op.lte]: endDate };
     }
 
-    // time window filtering
+    // Time window filtering
     if (startTime && endTime) {
-      where.pickTime = { [Op.gte]: startTime };
-      where.returnTime = { [Op.lte]: endTime };
+      where.pickTime   = { [Op.gte]: startTime };
+      where.returnTime = { [Op.lte]: endTime   };
     } else if (startTime) {
       where.pickTime = { [Op.gte]: startTime };
     } else if (endTime) {
       where.returnTime = { [Op.lte]: endTime };
     }
 
-    // reservation shortcut (e.g. upcoming bookings)
-    if (reservation === "upcoming") {
-      const today = new Date().toISOString().split("T")[0];
-      where.pickDate = where.pickDate || {};
-      where.pickDate[Op.gte] = today;
-    }
-
-    // Fetch with associations
+    // Fetch bookings with related models
     const bookings = await Booking.findAll({
       where,
       include: [
         {
           model: Car,
-          attributes: ["id", "name", "image", "userId"],
-          include: [
-            {
-              model: User,
-              attributes: ["id", "firstName", "lastName", "email", 'phone']
-            }
-          ]
+          attributes: ["id", "name", "image",'number', "userId"],
+          include: [{ 
+            model: User,
+            attributes: ["id", "firstName", "lastName", "email", "phone"]
+          }]
         },
         {
           model: User,
-          attributes: ["id", "firstName", "lastName", "phone", 'email']
+          attributes: ["id", "firstName", "lastName", "email", "phone"]
         },
         {
           model: BookingDocument
@@ -304,82 +295,83 @@ getBookings = async (req, res) => {
       return `${hh}:${m} ${ampm}`;
     };
 
-    // Build response objects
+    // Build response
     const data = bookings.map(bk => {
-      const b = bk.toJSON();
+      const b   = bk.toJSON();
       const car = b.Car || {};
-      const user = b.User || {};
+      const usr = b.User  || {};
       const doc = b.BookingDocument || {};
 
-      // First car image
-      let carImage = null;
-      if (car.image) {
-        try { carImage = JSON.parse(car.image)[0]; } catch { }
+      // parse car.image JSON string
+      let images = [];
+      if (typeof car.image === "string") {
+        try { images = JSON.parse(car.image); } catch {}
+      } else if (Array.isArray(car.image)) {
+        images = car.image;
       }
 
-      // Parse document arrays
+      // parse document arrays
       const parseArr = key => {
         try { return JSON.parse(doc[key] || "[]"); }
         catch { return []; }
       };
-      // inside your bookings.map(...)
-      const rawImages = car.image;
-      let images = [];
-      if (typeof rawImages === 'string') {
-        try {
-          images = JSON.parse(rawImages);
-        } catch (_) {
-          images = [];
-        }
-      } else if (Array.isArray(rawImages)) {
-        images = rawImages;
-      }
 
       return {
-        id: b.id,
-        carId: b.carId,
-        userId: b.userId,
-        status: b.status,
-        rentPrice: b.rentPrice,
-        totalPrice: b.totalPrice,
-        discount: b.discount,
-        pickupCity: b.pickupCity,
-        dropOffCity: b.dropOffCity,
-        insuranceFee: b.insuranceFee,
-        serviceFee: b.serviceFee,
-        paymentMethod: b.paymentMethod,
-        pickDate: b.pickDate,
-        pickTime: fmtTime(b.pickTime),
-        dropDate: b.returnDate,
-        dropTime: fmtTime(b.returnTime),
-        pickupOTP: b.pickupOTP,
-        dropOffOTP: b.dropOffOTP,
-
-        // embed car plus parsed images
+        id:             b.id,
+        carId:          b.carId,
+        userId:         b.userId,
+        status:         b.status,
+        rentPrice:      b.rentPrice,
+        totalPrice:     b.totalPrice,
+        discount:       b.discount,
+        pickupCity:     b.pickupCity,
+        dropOffCity:    b.dropOffCity,
+        insuranceFee:   b.insuranceFee,
+        serviceFee:     b.serviceFee,
+        paymentMethod:  b.paymentMethod,
+        pickDate:       b.pickDate,
+        pickTime:       fmtTime(b.pickTime),
+        dropDate:       b.returnDate,
+        dropTime:       fmtTime(b.returnTime),
+        pickupOTP:      b.pickupOTP,
+        dropOffOTP:     b.dropOffOTP,
+        // embed car with parsed images and owner
         car: {
-          ...car,
-          image:images
+          id:car.id,
+          name:car.name,
+          number:car.number,
+          images,
+          owner: {
+            id:   car.User?.id,
+            name: `${car.User?.firstName || ""} ${car.User?.lastName || ""}`.trim(),
+            email: car.User?.email,
+            phone: car.User?.phone
+          }
         },
-
         // booking customer
-        customer: user,
-
+        customer: {
+          id:   usr.id,
+          name: `${usr.firstName || ""} ${usr.lastName || ""}`.trim(),
+          email: usr.email,
+          phone: usr.phone
+        },
         documents: {
-          carPickDocs: parseArr("carPickDocs"),
-          personPickDocs: parseArr("personPickDocs"),
-          carDropDocs: parseArr("carDropDocs"),
-          personDropDocs: parseArr("personDropDocs"),
-          pickDescription: doc.pickDescription || null,
-          dropDescription: doc.dropDescription || null
+          carPickDocs:     parseArr("carPickDocs"),
+          personPickDocs:  parseArr("personPickDocs"),
+          carDropDocs:     parseArr("carDropDocs"),
+          personDropDocs:  parseArr("personDropDocs"),
+          pickDescription: doc.pickDescription  || null,
+          dropDescription: doc.dropDescription  || null
         }
       };
-
     });
-
     return res.status(200).json({ success: true, data });
   } catch (err) {
     console.error("Error in getBookings:", err);
-    return res.status(500).json({ success: false, message: "Internal server error." });
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error."
+    });
   }
 };
 
