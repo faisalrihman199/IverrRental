@@ -28,7 +28,7 @@ const Booking = sequelize.define("Booking", {
   },
   rentPrice: {
     type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
+    allowNull: true,
   },
   pickupCity: {
     type: DataTypes.STRING,
