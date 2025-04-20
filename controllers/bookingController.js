@@ -31,7 +31,7 @@ saveBooking = async (req, res) => {
     // Validate on create
     if (!id) {
       const required = [
-        'carId','status','totalPrice','discount',
+        'carId','totalPrice','discount',
         'pickupCity','dropOffCity','insuranceFee','serviceFee',
         'paymentMethod','pickDate','pickTime','returnDate','returnTime'
       ];
