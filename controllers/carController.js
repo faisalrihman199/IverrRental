@@ -260,6 +260,9 @@ const getCars = async (req, res) => {
       if (typeof c.locationInfo === 'string') {
         try {
           c.locationInfo = JSON.parse(c.locationInfo);
+          cityName=models.findByPk(c.locationInfo.cityId);
+          
+          // c.locationInfo.cityName=cityName;
         } catch {
           c.locationInfo = [];
         }
