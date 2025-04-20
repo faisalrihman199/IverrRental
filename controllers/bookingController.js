@@ -1,5 +1,5 @@
 const models = require("../models");
-const { Booking } = require("../models");
+const { Booking,Car,BookingDocument,User,Calendar } = require("../models");
 const { Op } = require("sequelize");
 const { addNotification } = require("./notificationController");
 
@@ -10,234 +10,359 @@ function formatDate(date) {
   return `${month}/${day}/${year}`;
 }
 
-const saveBooking = async (req, res) => {
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+
+saveBooking = async (req, res) => {
+  const transaction = await models.sequelize.transaction();
   try {
-    const { id } = req.query;
-    const userId = req.user.id;
-    const { carId, status, isDriver, pickDate, pickTime, returnDate, returnTime } = req.body;
-    let effectiveData = {};
+    const { id, pickup, dropoff } = req.query;
+    const userId   = req.user.id;
+    const isAdmin  = req.user.role === "admin";
 
-    if (id) {
-      const booking = await Booking.findByPk(id);
-      if (!booking) {
-        return res.status(404).json({ success: false, message: "Booking not found." });
+    // Destructure body
+    const {
+      carId, status, rentPrice, totalPrice, discount,
+      pickupCity, dropOffCity, insuranceFee, serviceFee,
+      paymentMethod, pickDate, pickTime, returnDate, returnTime,
+      pickDescription, dropDescription
+    } = req.body;
+
+    // Validate on create
+    if (!id) {
+      const required = [
+        'carId','status','rentPrice','totalPrice','discount',
+        'pickupCity','dropOffCity','insuranceFee','serviceFee',
+        'paymentMethod','pickDate','pickTime','returnDate','returnTime'
+      ];
+      const missing = required.filter(f => req.body[f] == null);
+      if (missing.length) {
+        await transaction.rollback();
+        return res.status(400).json({
+          success: false,
+          message: `Missing fields: ${missing.join(", ")}`
+        });
       }
-      if (req.user.role !== "admin" && booking.userId !== userId) {
-        return res.status(403).json({ success: false, message: "Not authorized to update this booking." });
-      }
-      effectiveData.carId = carId !== undefined ? carId : booking.carId;
-      effectiveData.status = status !== undefined ? status : booking.status;
-      effectiveData.isDriver = isDriver !== undefined ? isDriver : booking.isDriver;
-      effectiveData.pickDate = pickDate !== undefined ? pickDate : booking.pickDate;
-      effectiveData.pickTime = pickTime !== undefined ? pickTime : booking.pickTime;
-      effectiveData.returnDate = returnDate !== undefined ? returnDate : booking.returnDate;
-      effectiveData.returnTime = returnTime !== undefined ? returnTime : booking.returnTime;
-    } else {
-      if (!carId || !status || isDriver === undefined || !pickDate || !pickTime || !returnDate || !returnTime) {
-        return res.status(400).json({ success: false, message: "All fields (carId, status, isDriver, pickDate, pickTime, returnDate, returnTime) are required." });
-      }
-      effectiveData = { carId, status, isDriver, pickDate, pickTime, returnDate, returnTime, userId };
     }
 
-    if (new Date(effectiveData.pickDate) > new Date(effectiveData.returnDate)) {
-      return res.status(400).json({ success: false, message: "Pick date cannot be after return date." });
+    // Date order
+    if (new Date(pickDate) > new Date(returnDate)) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "Pick date cannot be after return date."
+      });
     }
 
-    let conflictCondition = {
-      carId: effectiveData.carId,
+    // Car existence & permission
+    const car = await Car.findByPk(carId, { transaction });
+    if (!car) {
+      await transaction.rollback();
+      return res.status(400).json({ success: false, message: "Invalid carId." });
+    }
+    
+
+    // Overlap check
+    const overlapCond = {
+      carId,
       [Op.and]: [
-        { pickDate: { [Op.lte]: effectiveData.returnDate } },
-        { returnDate: { [Op.gte]: effectiveData.pickDate } }
+        { pickDate:   { [Op.lte]: returnDate } },
+        { returnDate: { [Op.gte]: pickDate   } }
       ]
     };
-
-    if (id) {
-      conflictCondition.id = { [Op.ne]: id };
-    }
-
-    const conflictBooking = await Booking.findOne({ where: conflictCondition });
-    if (conflictBooking) {
-      return res.status(400).json({ success: false, message: "Car is already booked for one or more of the selected dates." });
+    if (id) overlapCond.id = { [Op.ne]: id };
+    const conflict = await Booking.findOne({ where: overlapCond, transaction });
+    if (conflict) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "Car already booked in this range."
+      });
     }
 
     let booking;
+    let oldPick, oldReturn;
     if (id) {
-      let updateData = {};
-      if (carId !== undefined) updateData.carId = carId;
-      if (status !== undefined) updateData.status = status;
-      if (isDriver !== undefined) updateData.isDriver = isDriver;
-      if (pickDate !== undefined) updateData.pickDate = pickDate;
-      if (pickTime !== undefined) updateData.pickTime = pickTime;
-      if (returnDate !== undefined) updateData.returnDate = returnDate;
-      if (returnTime !== undefined) updateData.returnTime = returnTime;
-      await Booking.update(updateData, { where: { id } });
-      booking = await Booking.findByPk(id);
-      res.status(200).json({ success: true, message: 'Booking updated successfully.', booking });
-      // Offload the notification creation to a background task (asynchronously)
-      setTimeout(async () => {
-        try {
+      // UPDATE
+      booking = await Booking.findByPk(id, { transaction });
+      if (!booking) {
+        await transaction.rollback();
+        return res.status(404).json({ success: false, message: "Booking not found." });
+      }
+      oldPick   = booking.pickDate;
+      oldReturn = booking.returnDate;
 
-          const car = await models.Car.findOne({
-            where: {
-              id: booking.carId
-            }
-          });
-          let carOwner=null;
-          if (car) {
-             carOwner= car.userId;  // Assuming `userId` is a column in the Car model
-            console.log("Car Owner :",carOwner);  // This will log the userId associated with the carId
-          } else {
-            console.log('Car not found');
-          }
-          const notificationData = {
-                  userId:carOwner,
-                  type: 'booking',
-                  heading: 'Booking Updated',
-                  content: `Your booking for car ID ${booking,carId} has been updated. New pick-up: ${booking.pickDate} at ${booking.pickTime}, New return: ${booking.returnDate} at ${booking.returnTime}.`,
-                  status: 'unread',
-              };
-              await addNotification(notificationData); // Send the notification asynchronously
-          } catch (error) {
-              console.error('Error sending notification:', error); // Log the error if something goes wrong
-          }
-      }, 2000); 
-
+      const updateData = { carId, status, rentPrice, totalPrice, discount,
+        pickupCity, dropOffCity, insuranceFee, serviceFee, paymentMethod,
+        pickDate, pickTime, returnDate, returnTime
+      };
+      await booking.update(updateData, { transaction });
     } else {
-      booking = await Booking.create(effectiveData);
-      res.status(201).json({ success: true, message: 'Booking created successfully.', booking });
-      
-      setTimeout(async () => {
-        try {
-          const car = await models.Car.findOne({
-            where: {
-              id: carId
-            }
-          });
-          let carOwner=null;
-          if (car) {
-             carOwner= car.userId;  
-            console.log("Car Owner :",carOwner);  
-          } else {
-            console.log('Car not found');
-          }
-          let notificationData = {
-            userId:carOwner,
-            type: 'booking',
-            heading: 'New Booking Added',
-            content: `Your booking for car ID ${carId} has been successfully created. Pick-up: ${pickDate} at ${pickTime}, Return: ${returnDate} at ${returnTime}.`,
-            status: 'unread',
-          };
-          await addNotification(notificationData); 
-        } catch (error) {
-          console.error('Error sending notification:', error); 
-        }
-      }, 200);
+      // CREATE
+      booking = await Booking.create({
+        carId, userId, status, rentPrice, totalPrice, discount,
+        pickupCity, dropOffCity, insuranceFee, serviceFee,
+        paymentMethod, pickDate, pickTime, returnDate, returnTime
+      }, { transaction });
     }
-  } catch (error) {
-    console.error("Error in saveBooking:", error);
+
+    // OTP generation
+    let otpFlag = false;
+    if (pickup === "true") {
+      booking.pickupOTP = generateOTP();
+      otpFlag = true;
+    }
+    if (dropoff === "true") {
+      booking.dropOffOTP = generateOTP();
+      otpFlag = true;
+    }
+    if (otpFlag) await booking.save({ transaction });
+
+    // Handle BookingDocument
+    const docFields = [
+      "carPickDocs","personPickDocs",
+      "carDropDocs","personDropDocs"
+    ];
+    const filesRaw = req.files || {};
+    const filesByField = Array.isArray(filesRaw)
+      ? filesRaw.reduce((a,f)=>{
+          if(docFields.includes(f.fieldname)){
+            a[f.fieldname]=a[f.fieldname]||[]; a[f.fieldname].push(f);
+          }
+          return a;
+        },{})
+      : Object.entries(filesRaw).reduce((a,[field,arr])=>{
+          if(docFields.includes(field)) a[field]=arr;
+          return a;
+        },{});
+
+    if (
+      docFields.some(f=> (filesByField[f]||[]).length>0 ) ||
+      pickDescription!==undefined ||
+      dropDescription!==undefined
+    ) {
+      const [doc] = await BookingDocument.findOrCreate({
+        where: { bookingId: booking.id },
+        defaults: { bookingId: booking.id },
+        transaction
+      });
+
+      // descriptions
+      if (pickDescription  !== undefined) doc.pickDescription  = pickDescription;
+      if (dropDescription  !== undefined) doc.dropDescription  = dropDescription;
+
+      // files arrays
+      for (const f of docFields) {
+        const arr = filesByField[f]||[];
+        if (arr.length) {
+          if (doc[f]) {
+            try {
+              JSON.parse(doc[f]).forEach(rel=>{
+                const p = path.join(__dirname,"../public",rel.replace(/^\/+/,""));
+                if (fs.existsSync(p)) fs.unlinkSync(p);
+              });
+            } catch{}
+          }
+          doc[f] = JSON.stringify(arr.map(file=>`/uploads/bookingDocs/${file.filename}`));
+        }
+      }
+      await doc.save({ transaction });
+    }
+
+    // Update Calendar for this booking
+    if (id) {
+      // update existing calendar entry
+      const cal = await Calendar.findOne({
+        where: { carId, startDate: oldPick, endDate: oldReturn },
+        transaction
+      });
+      if (cal) {
+        cal.startDate = pickDate;
+        cal.endDate   = returnDate;
+        cal.status    = "booked";
+        await cal.save({ transaction });
+      } else {
+        await Calendar.create({
+          carId,
+          startDate: pickDate,
+          endDate:   returnDate,
+          status:    "booked"
+        }, { transaction });
+      }
+    } else {
+      // create new calendar entry
+      await Calendar.create({
+        carId,
+        startDate: pickDate,
+        endDate:   returnDate,
+        status:    "booked"
+      }, { transaction });
+    }
+
+    await transaction.commit();
+    const msg = id ? "Booking updated." : "Booking created.";
+    return res.status(id ? 200 : 201).json({ success: true, message: msg, booking });
+  } catch (err) {
+    await transaction.rollback();
+    console.error("Error in saveBooking:", err);
     return res.status(500).json({ success: false, message: "Internal server error." });
   }
 };
 
-const getBookings = async (req, res) => {
+
+// controllers/bookingController.js
+
+getBookings = async (req, res) => {
   try {
-    const { carId, userId, startDate, endDate, startTime, endTime, status, driver,reservation } = req.query;
+    const {
+      carId,
+      userId: qUserId,
+      startDate,
+      endDate,
+      startTime,
+      endTime,
+      status,
+      reservation
+    } = req.query;
+
     const currentUserId = req.user.id;
-    const isAdmin = req.user.role === "admin";
-    let whereClause = {};
+    const isAdmin       = req.user.role === "admin";
+
+    // Build where clause
+    const where = {};
 
     if (!isAdmin) {
-      whereClause.userId = currentUserId;
-    } else if (userId) {
-      whereClause.userId = userId;
+      // either the booking was made by them or it's for a car they own
+      where[Op.or] = [
+        { userId: currentUserId },
+        { "$Car.userId$": currentUserId }
+      ];
+    } else if (qUserId) {
+      where.userId = qUserId;
     }
 
-    if (carId) {
-      whereClause.carId = carId;
-    }
-    if (status) {
-      whereClause.status = status;
-    }
+    if (carId)  where.carId  = carId;
+    if (status) where.status = status;
+
+    // date overlap filtering
     if (startDate && endDate) {
-      whereClause[Op.and] = [
-        { pickDate: { [Op.lte]: endDate } },
+      where[Op.and] = [
+        { pickDate:   { [Op.lte]: endDate   } },
         { returnDate: { [Op.gte]: startDate } }
       ];
     } else if (startDate) {
-      whereClause.pickDate = { [Op.gte]: startDate };
+      where.pickDate = { [Op.gte]: startDate };
     } else if (endDate) {
-      whereClause.returnDate = { [Op.lte]: endDate };
-    }
-    if (startTime && endTime) {
-      whereClause.pickTime = { [Op.gte]: startTime };
-      whereClause.returnTime = { [Op.lte]: endTime };
-    } else if (startTime) {
-      whereClause.pickTime = { [Op.gte]: startTime };
-    } else if (endTime) {
-      whereClause.returnTime = { [Op.lte]: endTime };
-    }
-    if (driver) {
-      if (driver.toLowerCase() === "yes") {
-        whereClause.isDriver = true;
-      } else if (driver.toLowerCase() === "no") {
-        whereClause.isDriver = false;
-      }
+      where.returnDate = { [Op.lte]: endDate };
     }
 
+    // time window filtering
+    if (startTime && endTime) {
+      where.pickTime   = { [Op.gte]: startTime };
+      where.returnTime = { [Op.lte]: endTime   };
+    } else if (startTime) {
+      where.pickTime = { [Op.gte]: startTime };
+    } else if (endTime) {
+      where.returnTime = { [Op.lte]: endTime };
+    }
+
+    // reservation shortcut (e.g. upcoming bookings)
+    if (reservation === "upcoming") {
+      const today = new Date().toISOString().split("T")[0];
+      where.pickDate = where.pickDate || {};
+      where.pickDate[Op.gte] = today;
+    }
+
+    // Fetch with associations
     const bookings = await Booking.findAll({
-      where: whereClause,
-      include: [models.Car, models.User],
+      where,
+      include: [
+        {
+          model: Car,
+          attributes: ["id", "name", "image", "userId"]
+        },
+        {
+          model: User,
+          attributes: ["id", "firstName", "lastName",'phone']
+        },
+        {
+          model: BookingDocument
+        }
+      ],
       order: [["createdAt", "DESC"]]
     });
 
-    // Helper function to convert "HH:mm:ss" to "h:mm AM/PM"
-    const convertTime = (time24) => {
-      const [hour, minute] = time24.split(':');
-      let h = parseInt(hour, 10);
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      h = h % 12;
-      if (h === 0) h = 12;
-      return `${h}:${minute} ${ampm}`;
+    // Helper to format time to h:mm AM/PM
+    const fmtTime = t24 => {
+      const [h, m] = t24.split(":");
+      let hh = parseInt(h, 10);
+      const ampm = hh >= 12 ? "PM" : "AM";
+      hh = hh % 12 || 12;
+      return `${hh}:${m} ${ampm}`;
     };
 
-    const formattedBookings = bookings.map(booking => {
-      // Use .dataValues if it's a Sequelize instance
-      const bookingData = booking.dataValues || booking;
-      const car = bookingData.Car;
-      const user = bookingData.User;
+    // Build response objects
+    const data = bookings.map(bk => {
+      const b = bk.toJSON();
+      const car = b.Car || {};
+      const user = b.User || {};
+      const doc = b.BookingDocument || {};
 
-      // Parse the car image field, which is stored as a JSON string.
-      let carImages = [];
-      try {
-        carImages = JSON.parse(car.image);
-      } catch (error) {
-        // Fallback in case the parsing fails
-        carImages = [car.image];
+      // First car image
+      let carImage = null;
+      if (car.image) {
+        try { carImage = JSON.parse(car.image)[0]; } catch {}
       }
 
+      // Parse document arrays
+      const parseArr = key => {
+        try { return JSON.parse(doc[key] || "[]"); }
+        catch { return []; }
+      };
+
       return {
-        id: bookingData.id,
-        carId: booking.carId,
-        userId: car.userId,
-        isDriver: booking.isDriver,
-        carName: car.name.trim(),
-        carImage: carImages[0], // First image from the parsed array
-        pickDate: bookingData.pickDate, // Assumes format is already yyyy-mm-dd
-        pickTime: convertTime(bookingData.pickTime), // Format to AM/PM
-        dropDate: bookingData.returnDate, // Renamed from returnDate to dropDate
-        dropTime: convertTime(bookingData.returnTime),
-        customerName: user.fullName,
-        customerPhone: user.phone,
-        status: bookingData.status
+        id:              b.id,
+        carId:           b.carId,
+        userId:          b.userId,
+        status:          b.status,
+        rentPrice:       b.rentPrice,
+        totalPrice:      b.totalPrice,
+        discount:        b.discount,
+        pickupCity:      b.pickupCity,
+        dropOffCity:     b.dropOffCity,
+        insuranceFee:    b.insuranceFee,
+        serviceFee:      b.serviceFee,
+        paymentMethod:   b.paymentMethod,
+        pickDate:        b.pickDate,
+        pickTime:        fmtTime(b.pickTime),
+        dropDate:        b.returnDate,
+        dropTime:        fmtTime(b.returnTime),
+        pickupOTP:       b.pickupOTP,
+        dropOffOTP:      b.dropOffOTP,
+        carName:         car.name,
+        carImage,
+        customerName:    user.fullName,
+        customerPhone:   user.phone,
+        documents: {
+          carPickDocs:      parseArr("carPickDocs"),
+          personPickDocs:   parseArr("personPickDocs"),
+          carDropDocs:      parseArr("carDropDocs"),
+          personDropDocs:   parseArr("personDropDocs"),
+          pickDescription:  doc.pickDescription || null,
+          dropDescription:  doc.dropDescription || null
+        }
       };
     });
 
-    return res.status(200).json({ success: true, data: formattedBookings });
-  } catch (error) {
-    console.error("Error in getBookings:", error);
+    return res.status(200).json({ success: true, data });
+  } catch (err) {
+    console.error("Error in getBookings:", err);
     return res.status(500).json({ success: false, message: "Internal server error." });
   }
 };
+
 
 const getComingBookings = async (req, res) => {
   try {

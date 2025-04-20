@@ -2,52 +2,88 @@ const { DataTypes } = require("sequelize");
 const sequelize = require("../config/db");
 
 const Booking = sequelize.define("Booking", {
-    carId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-            model: 'Cars', // Name of the referenced table
-            key: 'id', // Primary key in the referenced table
-        },
-        onUpdate: 'CASCADE',
-        onDelete: 'CASCADE',
+  carId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'Cars',
+      key: 'id',
     },
-    userId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-            model: 'Users', // Name of the referenced table
-            key: 'id', // Primary key in the referenced table
-        },
-        onUpdate: 'CASCADE',
-        onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE',
+  },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'Users',
+      key: 'id',
     },
-    status: {
-        type: DataTypes.STRING,
-        allowNull: false,
-    },
-    isDriver: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-    },
-    pickDate: {
-        type: DataTypes.DATEONLY,
-        allowNull: false,
-    },
-    pickTime: {
-        type: DataTypes.TIME,
-        allowNull: false,
-    },
-    returnDate: {
-        type: DataTypes.DATEONLY,
-        allowNull: false,
-    },
-    returnTime: {
-        type: DataTypes.TIME,
-        allowNull: false,
-    },
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE',
+  },
+  status: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  rentPrice: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+  },
+  pickupCity: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  dropOffCity: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  pickupOTP: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  dropOffOTP: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  pickDate: {
+    type: DataTypes.DATEONLY,
+    allowNull: false,
+  },
+  pickTime: {
+    type: DataTypes.TIME,
+    allowNull: false,
+  },
+  returnDate: {
+    type: DataTypes.DATEONLY,
+    allowNull: false,
+  },
+  returnTime: {
+    type: DataTypes.TIME,
+    allowNull: false,
+  },
+  insuranceFee: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+  },
+  serviceFee: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+  },
+  totalPrice: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+  },
+  discount: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+  },
+  paymentMethod: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
 }, {
-    timestamps: true,
+  timestamps: true,
 });
 
 module.exports = Booking;
