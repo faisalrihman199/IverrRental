@@ -21,7 +21,6 @@ saveBooking = async (req, res) => {
     const { id, pickup, dropoff } = req.query;
     const userId   = req.user.id;
     const isAdmin  = req.user.role === "admin";
-
     // Destructure body
     const {
       carId, status, rentPrice, totalPrice, discount,
@@ -29,11 +28,10 @@ saveBooking = async (req, res) => {
       paymentMethod, pickDate, pickTime, returnDate, returnTime,
       pickDescription, dropDescription
     } = req.body;
-
     // Validate on create
     if (!id) {
       const required = [
-        'carId','status','rentPrice','totalPrice','discount',
+        'carId','status','totalPrice','discount',
         'pickupCity','dropOffCity','insuranceFee','serviceFee',
         'paymentMethod','pickDate','pickTime','returnDate','returnTime'
       ];
@@ -46,7 +44,6 @@ saveBooking = async (req, res) => {
         });
       }
     }
-
     // Date order
     if (new Date(pickDate) > new Date(returnDate)) {
       await transaction.rollback();
@@ -55,15 +52,12 @@ saveBooking = async (req, res) => {
         message: "Pick date cannot be after return date."
       });
     }
-
     // Car existence & permission
     const car = await Car.findByPk(carId, { transaction });
     if (!car) {
       await transaction.rollback();
       return res.status(400).json({ success: false, message: "Invalid carId." });
     }
-    
-
     // Overlap check
     const overlapCond = {
       carId,
