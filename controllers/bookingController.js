@@ -98,12 +98,12 @@ saveBooking = async (req, res) => {
       await booking.update(updateData, { transaction });
     } else {
       // CREATE
-      const calendar = await models.Calendar.findOne({ where: { carId } });
+      const calendar = await models.Calendar.findOne({ where: { carId, startDate: pickDate,endDate:returnDate} });
 
-      if (calendar && calendar.status === 'booked') {
+      if (calendar && calendar.status !== 'available') {
         return res.json({
           success: false,
-          message: "Car is Already booked",
+          message: "This Car is not available booked",
         });
       }
       booking = await Booking.create({

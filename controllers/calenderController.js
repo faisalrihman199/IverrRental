@@ -39,8 +39,7 @@ exports.saveCalendar = async (req, res) => {
         where: { carId }
       });
       
-      if (id || carExist) {
-        id=carExist.id;
+      if (id) {
         // UPDATE flow
         entry = await models.Calendar.findByPk(id, { transaction: t });
         if (!entry) {
