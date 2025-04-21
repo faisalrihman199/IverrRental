@@ -28,6 +28,8 @@ saveBooking = async (req, res) => {
       paymentMethod, pickDate, pickTime, returnDate, returnTime,
       pickDescription, dropDescription
     } = req.body;
+    
+
     // Validate on create
     if (!id) {
       const required = [
@@ -96,6 +98,14 @@ saveBooking = async (req, res) => {
       await booking.update(updateData, { transaction });
     } else {
       // CREATE
+      const calendar = await models.Calendar.findOne({ where: { carId } });
+
+      if (calendar && calendar.status === 'booked') {
+        return res.json({
+          success: false,
+          message: "Car is Already booked",
+        });
+      }
       booking = await Booking.create({
         carId, userId, status, rentPrice, totalPrice, discount,
         pickupCity, dropOffCity, insuranceFee, serviceFee,
