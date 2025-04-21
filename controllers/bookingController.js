@@ -102,18 +102,19 @@ saveBooking = async (req, res) => {
         where: {
           carId,
           [Op.and]: [
-            { startDate: { [Op.lte]: returnDate } },
-            { endDate:   { [Op.gte]: pickDate } }
+            
+            { startDate: { [Op.lte]: pickDate } },
+            { endDate:   { [Op.gte]: returnDate } }
           ]
         },
-        transaction: t
       });
-      if (overlap && overlap.status!=="available") {
-        return res.status(200).json({
+      if (overlap && (overlap.status!=="available" && overlap.status!=="special") ){
+        return res.status(400).json({
           success: false,
           message: 'Date range overlaps an existing calendar entry for this car'
         });
       }
+      
       booking = await Booking.create({
         carId, userId, status, rentPrice, totalPrice, discount,
         pickupCity, dropOffCity, insuranceFee, serviceFee,
