@@ -98,12 +98,20 @@ saveBooking = async (req, res) => {
       await booking.update(updateData, { transaction });
     } else {
       // CREATE
-      const calendar = await models.Calendar.findOne({ where: { carId, startDate: pickDate,endDate:returnDate} });
-
-      if (calendar && calendar.status !== 'available') {
-        return res.json({
+      const overlap = await models.Calendar.findOne({
+        where: {
+          carId,
+          [Op.and]: [
+            { startDate: { [Op.lte]: returnDate } },
+            { endDate:   { [Op.gte]: pickDate } }
+          ]
+        },
+        transaction: t
+      });
+      if (overlap && overlap.status!=="available") {
+        return res.status(200).json({
           success: false,
-          message: "This Car is not available booked",
+          message: 'Date range overlaps an existing calendar entry for this car'
         });
       }
       booking = await Booking.create({
