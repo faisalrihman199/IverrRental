@@ -334,6 +334,9 @@ getBookings = async (req, res) => {
         try { return JSON.parse(doc[key] || "[]"); }
         catch { return []; }
       };
+      // if(b.pickupCity){
+      //   b.pickupCity=JSON.parse(b.pickupCity)
+      // }
 
       return {
         id:             b.id,
@@ -343,8 +346,8 @@ getBookings = async (req, res) => {
         rentPrice:      b.rentPrice,
         totalPrice:     b.totalPrice,
         discount:       b.discount,
-        pickupCity:     b.pickupCity,
-        dropOffCity:    b.dropOffCity,
+        pickupCity:     JSON.parse(b.pickupCity),
+        dropOffCity:    JSON.parse(b.dropOffCity),
         insuranceFee:   b.insuranceFee,
         serviceFee:     b.serviceFee,
         paymentMethod:  b.paymentMethod,
@@ -354,23 +357,21 @@ getBookings = async (req, res) => {
         dropTime:       fmtTime(b.returnTime),
         pickupOTP:      b.pickupOTP,
         dropOffOTP:     b.dropOffOTP,
-        // embed car with parsed images and owner
         car: {
-          id:car.id,
-          name:car.name,
-          number:car.number,
+          id:     car.id,
+          name:   car.name,
+          number: car.number,
           images,
           owner: {
-            id:   car.User?.id,
-            name: `${car.User?.firstName || ""} ${car.User?.lastName || ""}`.trim(),
+            id:    car.User?.id,
+            name:  `${car.User?.firstName || ""} ${car.User?.lastName || ""}`.trim(),
             email: car.User?.email,
             phone: car.User?.phone
           }
         },
-        // booking customer
         customer: {
-          id:   usr.id,
-          name: `${usr.firstName || ""} ${usr.lastName || ""}`.trim(),
+          id:    usr.id,
+          name:  `${usr.firstName || ""} ${usr.lastName || ""}`.trim(),
           email: usr.email,
           phone: usr.phone
         },
@@ -379,10 +380,11 @@ getBookings = async (req, res) => {
           personPickDocs:  parseArr("personPickDocs"),
           carDropDocs:     parseArr("carDropDocs"),
           personDropDocs:  parseArr("personDropDocs"),
-          pickDescription: doc.pickDescription  || null,
-          dropDescription: doc.dropDescription  || null
+          pickDescription: doc.pickDescription || null,
+          dropDescription: doc.dropDescription || null
         }
       };
+      
     });
     return res.status(200).json({ success: true, data });
   } catch (err) {
