@@ -176,9 +176,9 @@ saveCar = async (req, res) => {
 const getCars = async (req, res) => {
   try {
     const { id, status, carTypeId, carBrandId, carCityId, mine } = req.query;
-    const userId = req.user.id;
+    const  userId =req.query.userId || req.user.id;
     let whereClause = {};
-    if (mine) {
+    if (mine || req.query.userId) {
       whereClause.userId = userId;
     }
     if (id)           whereClause.id         = id;
