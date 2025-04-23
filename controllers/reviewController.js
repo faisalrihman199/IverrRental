@@ -92,45 +92,63 @@ exports.saveReview = async (req, res) => {
 };
 
 exports.getReviews = async (req, res) => {
-    try {
-      let {userId}=req.query;
-      
-      userId =userId || req.user.id;
+  try {
+    let { userId } = req.query;
 
-      const query = { ...req.query };
-      delete query.userId;
+    userId = userId || req.user.id;
 
-      let role='admin'
-      // Extract special 'reviewee' flag and remove it from filters
-      const revieweeFlag = query.reviewee;
-      delete query.reviewee;
-  
-      // Prepare where clause
-      let where = {};
-      
-        // Non-admin: determine base condition
-        let base = {};
-        if (revieweeFlag !== undefined) {
-          base = revieweeFlag === 'true'
-            ? { revieweeId: userId }
-            : { writerId: userId };
-        } else if (Object.keys(query).length === 0) {
-          // no filters: default to writer's reviews
-          base = { writerId: userId };
-        } else {
-          // filters exist: default to writer's reviews
-          base = { writerId: userId };
-        }
-        where = { ...base, ...query };
-      
-  
-      const reviews = await models.Review.findAll({ where });
-      return res.status(200).json({ success: true, data: reviews });
-    } catch (error) {
-      console.error("Error fetching reviews:", error);
-      return res.status(500).json({ success: false, message: "Error fetching reviews" });
+    const query = { ...req.query };
+    delete query.userId;
+
+    let role = 'admin';
+
+    // Extract special 'reviewee' flag and remove it from filters
+    const revieweeFlag = query.reviewee;
+    delete query.reviewee;
+
+    // Prepare where clause
+    let where = {};
+
+    // Non-admin: determine base condition
+    let base = {};
+    if (revieweeFlag !== undefined) {
+      base = revieweeFlag === 'true'
+        ? { revieweeId: userId }
+        : { writerId: userId };
+    } else if (Object.keys(query).length === 0) {
+      // no filters: default to writer's reviews
+      base = { writerId: userId };
+    } else {
+      // filters exist: default to writer's reviews
+      base = { writerId: userId };
     }
-  };
+    where = { ...base, ...query };
+
+    // Fetch reviews with user details
+    const reviews = await models.Review.findAll({
+      where,
+      include: [
+        {
+          model: models.User,
+          as: 'reviewee',  // Alias for reviewee user
+          attributes: ['firstName', 'lastName'],  // Only include firstName and lastName
+        },
+        {
+          model: models.User,
+          as: 'writer',  // Alias for writer user
+          attributes: ['firstName', 'lastName'],  // Only include firstName and lastName
+        },
+      ],
+    });
+
+    return res.status(200).json({ success: true, data: reviews });
+  } catch (error) {
+    console.error("Error fetching reviews:", error);
+    return res.status(500).json({ success: false, message: "Error fetching reviews" });
+  }
+};
+
+
   
   exports.deleteReview = async (req, res) => {
     try {

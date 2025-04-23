@@ -51,6 +51,13 @@ const models = {
 Car.hasMany(Review, { foreignKey: 'carId' });
 Review.belongsTo(Car, { foreignKey: 'carId' });
 
+User.hasMany(Review, { foreignKey: 'revieweeId', as: 'reviewee' });
+Review.belongsTo(User, { foreignKey: 'revieweeId', as: 'reviewee' });
+
+// Define association between Review and User for writerId
+User.hasMany(Review, { foreignKey: 'writerId', as: 'writer' });
+Review.belongsTo(User, { foreignKey: 'writerId', as: 'writer' });
+
 Booking.hasOne(BookingDocument, { foreignKey: 'bookingId' });
 BookingDocument.belongsTo(Booking, { foreignKey: 'bookingId' });
 
