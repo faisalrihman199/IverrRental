@@ -94,10 +94,12 @@ exports.saveReview = async (req, res) => {
 exports.getReviews = async (req, res) => {
     try {
       let {userId}=req.query;
-      userId =userId || req.user;
+      
+      userId =userId || req.user.id;
 
       const query = { ...req.query };
       delete query.userId;
+
       let role='admin'
       // Extract special 'reviewee' flag and remove it from filters
       const revieweeFlag = query.reviewee;
@@ -105,10 +107,7 @@ exports.getReviews = async (req, res) => {
   
       // Prepare where clause
       let where = {};
-      if (role === 'admin') {
-        // Admin: no filters => all; else apply provided filters
-        where = query;
-      } else {
+      
         // Non-admin: determine base condition
         let base = {};
         if (revieweeFlag !== undefined) {
@@ -123,7 +122,7 @@ exports.getReviews = async (req, res) => {
           base = { writerId: userId };
         }
         where = { ...base, ...query };
-      }
+      
   
       const reviews = await models.Review.findAll({ where });
       return res.status(200).json({ success: true, data: reviews });
