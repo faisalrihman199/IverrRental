@@ -62,6 +62,7 @@ const getFavouriteCars = async (req, res) => {
             {model:models.Review},
             {model:models.Calendar},
             {model:models.CarDocument},
+            {model:models.Insurance},
             {
               model: models.User,
               attributes: ['firstName', 'lastName']

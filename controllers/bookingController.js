@@ -334,9 +334,7 @@ getBookings = async (req, res) => {
         try { return JSON.parse(doc[key] || "[]"); }
         catch { return []; }
       };
-      // if(b.pickupCity){
-      //   b.pickupCity=JSON.parse(b.pickupCity)
-      // }
+     
 
       return {
         id:             b.id,
