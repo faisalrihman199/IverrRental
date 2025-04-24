@@ -238,22 +238,21 @@ getBookings = async (req, res) => {
       startDate,
       endDate,
       startTime,
-      endTime
+      endTime,
+      mine
     } = req.query;
 
     // Determine the effective userId
-    const userId = qUserId || req.user.id;
+    const userId = qUserId || mine?req.user.id:null;
 
     // Base where clause
     const where = {};
-
-    // Reservation logic:
-    // If reservation=true, show bookings for cars the user owns.
-    // Otherwise show bookings the user made.
     if (reservation === "true") {
       where["$Car.userId$"] = userId;
     } else {
-      where.userId = userId;
+      if(userId ){
+        where.userId = userId;
+      }
     }
 
     // Additional optional filters
