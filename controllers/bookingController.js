@@ -15,25 +15,60 @@ function generateOTP() {
 }
 
 
+
 saveBooking = async (req, res) => {
   const transaction = await models.sequelize.transaction();
   try {
     const { id, pickup, dropoff } = req.query;
     const userId = req.user.id;
     const isAdmin = req.user.role === "admin";
-    // Destructure body
+
+    // common body fields
     const {
       carId, status, rentPrice, totalPrice, discount,
       pickupCity, dropOffCity, insuranceFee, serviceFee,
       paymentMethod, pickDate, pickTime, returnDate, returnTime,
       pickDescription, dropDescription
     } = req.body;
-    
 
-    // Validate on create
-    if (!id) {
+    let booking;
+
+    if (id) {
+      // —— UPDATE FLOW —— 
+      booking = await Booking.findByPk(id, { transaction });
+      if (!booking) {
+        await transaction.rollback();
+        return res.status(404).json({ success: false, message: "Booking not found." });
+      }
+      const car = await Car.findByPk(booking.carId, { transaction });
+
+
+      // Only the booker or admin can update
+      if (!isAdmin && booking.userId !== userId && car.userId!==userId) {
+        await transaction.rollback();
+        return res.status(403).json({ success: false, message: "Forbidden." });
+      }
+
+      // Dynamic updates: only set fields that were provided
+      const updateData = {};
+      [
+        "carId", "status", "rentPrice", "totalPrice", "discount",
+        "pickupCity", "dropOffCity", "insuranceFee", "serviceFee",
+        "paymentMethod", "pickDate", "pickTime", "returnDate", "returnTime"
+      ].forEach(f => {
+        if (req.body[f] !== undefined) {
+          updateData[f] = req.body[f];
+        }
+      });
+      if (Object.keys(updateData).length) {
+        await booking.update(updateData, { transaction });
+      }
+
+    } else {
+      // —— CREATE FLOW —— 
+      // Required on create:
       const required = [
-        'carId', 'totalPrice', 'discount',
+        'carId', 'status', 'rentPrice', 'totalPrice', 'discount',
         'pickupCity', 'dropOffCity', 'insuranceFee', 'serviceFee',
         'paymentMethod', 'pickDate', 'pickTime', 'returnDate', 'returnTime'
       ];
@@ -45,111 +80,82 @@ saveBooking = async (req, res) => {
           message: `Missing fields: ${missing.join(", ")}`
         });
       }
-    }
-    // Date order
-    if (new Date(pickDate) > new Date(returnDate)) {
-      await transaction.rollback();
-      return res.status(400).json({
-        success: false,
-        message: "Pick date cannot be after return date."
-      });
-    }
-    // Car existence & permission
-    const car = await Car.findByPk(carId, { transaction });
-    if (!car) {
-      await transaction.rollback();
-      return res.status(400).json({ success: false, message: "Invalid carId." });
-    }
-    // Overlap check
-    const overlapCond = {
-      carId,
-      [Op.and]: [
-        { pickDate: { [Op.lte]: returnDate } },
-        { returnDate: { [Op.gte]: pickDate } }
-      ]
-    };
-    if (id) overlapCond.id = { [Op.ne]: id };
-    const conflict = await Booking.findOne({ where: overlapCond, transaction });
-    if (conflict) {
-      await transaction.rollback();
-      return res.status(400).json({
-        success: false,
-        message: "Car already booked in this range."
-      });
-    }
 
-    let booking;
-    let oldPick, oldReturn;
-    if (id) {
-      // UPDATE
-      booking = await Booking.findByPk(id, { transaction });
-      if (!booking) {
+      // Date order check
+      if (new Date(pickDate) > new Date(returnDate)) {
         await transaction.rollback();
-        return res.status(404).json({ success: false, message: "Booking not found." });
-      }
-      oldPick = booking.pickDate;
-      oldReturn = booking.returnDate;
-
-      const updateData = {
-        carId, status, rentPrice, totalPrice, discount,
-        pickupCity, dropOffCity, insuranceFee, serviceFee, paymentMethod,
-        pickDate, pickTime, returnDate, returnTime
-      };
-      await booking.update(updateData, { transaction });
-    } else {
-      // CREATE
-      const overlap = await models.Calendar.findOne({
-        where: {
-          carId,
-          [Op.and]: [
-            
-            { startDate: { [Op.lte]: pickDate } },
-            { endDate:   { [Op.gte]: returnDate } }
-          ]
-        },
-      });
-      if (overlap && (overlap.status!=="available" && overlap.status!=="special") ){
         return res.status(400).json({
           success: false,
-          message: 'Date range overlaps an existing calendar entry for this car'
+          message: "Pick date cannot be after return date."
         });
       }
-      
+
+      // Car exists
+      const car = await Car.findByPk(carId, { transaction });
+      if (!car) {
+        await transaction.rollback();
+        return res.status(400).json({ success: false, message: "Invalid carId." });
+      }
+
+      // Overlap check
+      const overlapCond = {
+        carId,
+        [Op.and]: [
+          { pickDate: { [Op.lte]: returnDate } },
+          { returnDate: { [Op.gte]: pickDate } }
+        ]
+      };
+      const conflict = await Booking.findOne({ where: overlapCond, transaction });
+      if (conflict) {
+        await transaction.rollback();
+        return res.status(400).json({
+          success: false,
+          message: "Car already booked in this range."
+        });
+      }
+
       booking = await Booking.create({
         carId, userId, status, rentPrice, totalPrice, discount,
         pickupCity, dropOffCity, insuranceFee, serviceFee,
         paymentMethod, pickDate, pickTime, returnDate, returnTime
       }, { transaction });
+
+      // Create calendar entry on create
+      await Calendar.create({
+        carId,
+        startDate: pickDate,
+        endDate: returnDate,
+        status: "booked"
+      }, { transaction });
     }
 
-    // OTP generation
-    let otpFlag = false;
+    // OTP generation on both create/update if flagged
+    let otpUpdated = false;
     if (pickup === "true") {
       booking.pickupOTP = generateOTP();
-      otpFlag = true;
+      otpUpdated = true;
     }
     if (dropoff === "true") {
       booking.dropOffOTP = generateOTP();
-      otpFlag = true;
+      otpUpdated = true;
     }
-    if (otpFlag) await booking.save({ transaction });
+    if (otpUpdated) {
+      await booking.save({ transaction });
+    }
 
-    // Handle BookingDocument
-    const docFields = [
-      "carPickDocs", "personPickDocs",
-      "carDropDocs", "personDropDocs"
-    ];
+    // Handle BookingDocument (files + descriptions)
+    const docFields = ["carPickDocs", "personPickDocs", "carDropDocs", "personDropDocs"];
     const filesRaw = req.files || {};
     const filesByField = Array.isArray(filesRaw)
-      ? filesRaw.reduce((a, f) => {
+      ? filesRaw.reduce((acc, f) => {
         if (docFields.includes(f.fieldname)) {
-          a[f.fieldname] = a[f.fieldname] || []; a[f.fieldname].push(f);
+          acc[f.fieldname] = (acc[f.fieldname] || []).concat(f);
         }
-        return a;
+        return acc;
       }, {})
-      : Object.entries(filesRaw).reduce((a, [field, arr]) => {
-        if (docFields.includes(field)) a[field] = arr;
-        return a;
+      : Object.entries(filesRaw).reduce((acc, [field, arr]) => {
+        if (docFields.includes(field)) acc[field] = arr;
+        return acc;
       }, {});
 
     if (
@@ -163,14 +169,13 @@ saveBooking = async (req, res) => {
         transaction
       });
 
-      // descriptions
       if (pickDescription !== undefined) doc.pickDescription = pickDescription;
       if (dropDescription !== undefined) doc.dropDescription = dropDescription;
 
-      // files arrays
       for (const f of docFields) {
         const arr = filesByField[f] || [];
         if (arr.length) {
+          // delete old files
           if (doc[f]) {
             try {
               JSON.parse(doc[f]).forEach(rel => {
@@ -185,34 +190,27 @@ saveBooking = async (req, res) => {
       await doc.save({ transaction });
     }
 
-    // Update Calendar for this booking
-    if (id) {
-      // update existing calendar entry
+    // On UPDATE only: adjust calendar if dates changed
+    if (id && (req.body.pickDate || req.body.returnDate)) {
+      const oldStart = booking._previousDataValues.pickDate;
+      const oldEnd = booking._previousDataValues.returnDate;
       const cal = await Calendar.findOne({
-        where: { carId, startDate: oldPick, endDate: oldReturn },
+        where: { carId, startDate: oldStart, endDate: oldEnd },
         transaction
       });
       if (cal) {
-        cal.startDate = pickDate;
-        cal.endDate = returnDate;
+        if (req.body.pickDate) cal.startDate = req.body.pickDate;
+        if (req.body.returnDate) cal.endDate = req.body.returnDate;
         cal.status = "booked";
         await cal.save({ transaction });
-      } else {
+      } else if (req.body.pickDate && req.body.returnDate) {
         await Calendar.create({
           carId,
-          startDate: pickDate,
-          endDate: returnDate,
+          startDate: req.body.pickDate,
+          endDate: req.body.returnDate,
           status: "booked"
         }, { transaction });
       }
-    } else {
-      // create new calendar entry
-      await Calendar.create({
-        carId,
-        startDate: pickDate,
-        endDate: returnDate,
-        status: "booked"
-      }, { transaction });
     }
 
     await transaction.commit();
@@ -254,14 +252,14 @@ getBookings = async (req, res) => {
     }
 
     // Additional optional filters
-    if (carId)  where.carId  = carId;
-    if (id)  where.id  = id;
+    if (carId) where.carId = carId;
+    if (id) where.id = id;
     if (status) where.status = status;
 
     // Date overlap filtering
     if (startDate && endDate) {
       where[Op.and] = [
-        { pickDate:   { [Op.lte]: endDate   } },
+        { pickDate: { [Op.lte]: endDate } },
         { returnDate: { [Op.gte]: startDate } }
       ];
     } else if (startDate) {
@@ -272,8 +270,8 @@ getBookings = async (req, res) => {
 
     // Time window filtering
     if (startTime && endTime) {
-      where.pickTime   = { [Op.gte]: startTime };
-      where.returnTime = { [Op.lte]: endTime   };
+      where.pickTime = { [Op.gte]: startTime };
+      where.returnTime = { [Op.lte]: endTime };
     } else if (startTime) {
       where.pickTime = { [Op.gte]: startTime };
     } else if (endTime) {
@@ -286,8 +284,8 @@ getBookings = async (req, res) => {
       include: [
         {
           model: Car,
-          attributes: ["id", "name", "image",'number', "userId"],
-          include: [{ 
+          attributes: ["id", "name", "image", 'number', "userId"],
+          include: [{
             model: User,
             attributes: ["id", "firstName", "lastName", "email", "phone"]
           }]
@@ -314,15 +312,15 @@ getBookings = async (req, res) => {
 
     // Build response
     const data = bookings.map(bk => {
-      const b   = bk.toJSON();
+      const b = bk.toJSON();
       const car = b.Car || {};
-      const usr = b.User  || {};
+      const usr = b.User || {};
       const doc = b.BookingDocument || {};
 
       // parse car.image JSON string
       let images = [];
       if (typeof car.image === "string") {
-        try { images = JSON.parse(car.image); } catch {}
+        try { images = JSON.parse(car.image); } catch { }
       } else if (Array.isArray(car.image)) {
         images = car.image;
       }
@@ -332,55 +330,55 @@ getBookings = async (req, res) => {
         try { return JSON.parse(doc[key] || "[]"); }
         catch { return []; }
       };
-     
+
 
       return {
-        id:             b.id,
-        carId:          b.carId,
-        userId:         b.userId,
-        status:         b.status,
-        rentPrice:      b.rentPrice,
-        totalPrice:     b.totalPrice,
-        discount:       b.discount,
-        pickupCity:     JSON.parse(b.pickupCity),
-        dropOffCity:    JSON.parse(b.dropOffCity),
-        insuranceFee:   b.insuranceFee,
-        serviceFee:     b.serviceFee,
-        paymentMethod:  b.paymentMethod,
-        pickDate:       b.pickDate,
-        pickTime:       fmtTime(b.pickTime),
-        dropDate:       b.returnDate,
-        dropTime:       fmtTime(b.returnTime),
-        pickupOTP:      b.pickupOTP,
-        dropOffOTP:     b.dropOffOTP,
+        id: b.id,
+        carId: b.carId,
+        userId: b.userId,
+        status: b.status,
+        rentPrice: b.rentPrice,
+        totalPrice: b.totalPrice,
+        discount: b.discount,
+        pickupCity: JSON.parse(b.pickupCity),
+        dropOffCity: JSON.parse(b.dropOffCity),
+        insuranceFee: b.insuranceFee,
+        serviceFee: b.serviceFee,
+        paymentMethod: b.paymentMethod,
+        pickDate: b.pickDate,
+        pickTime: fmtTime(b.pickTime),
+        dropDate: b.returnDate,
+        dropTime: fmtTime(b.returnTime),
+        pickupOTP: b.pickupOTP,
+        dropOffOTP: b.dropOffOTP,
         car: {
-          id:     car.id,
-          name:   car.name,
+          id: car.id,
+          name: car.name,
           number: car.number,
           images,
           owner: {
-            id:    car.User?.id,
-            name:  `${car.User?.firstName || ""} ${car.User?.lastName || ""}`.trim(),
+            id: car.User?.id,
+            name: `${car.User?.firstName || ""} ${car.User?.lastName || ""}`.trim(),
             email: car.User?.email,
             phone: car.User?.phone
           }
         },
         customer: {
-          id:    usr.id,
-          name:  `${usr.firstName || ""} ${usr.lastName || ""}`.trim(),
+          id: usr.id,
+          name: `${usr.firstName || ""} ${usr.lastName || ""}`.trim(),
           email: usr.email,
           phone: usr.phone
         },
         documents: {
-          carPickDocs:     parseArr("carPickDocs"),
-          personPickDocs:  parseArr("personPickDocs"),
-          carDropDocs:     parseArr("carDropDocs"),
-          personDropDocs:  parseArr("personDropDocs"),
+          carPickDocs: parseArr("carPickDocs"),
+          personPickDocs: parseArr("personPickDocs"),
+          carDropDocs: parseArr("carDropDocs"),
+          personDropDocs: parseArr("personDropDocs"),
           pickDescription: doc.pickDescription || null,
           dropDescription: doc.dropDescription || null
         }
       };
-      
+
     });
     return res.status(200).json({ success: true, data });
   } catch (err) {
