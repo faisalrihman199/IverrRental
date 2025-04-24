@@ -52,7 +52,7 @@ saveBooking = async (req, res) => {
       // Dynamic updates: only set fields that were provided
       const updateData = {};
       [
-        "carId", "status", "rentPrice", "totalPrice", "discount",
+        "carId", "status",, "totalPrice", "discount",
         "pickupCity", "dropOffCity", "insuranceFee", "serviceFee",
         "paymentMethod", "pickDate", "pickTime", "returnDate", "returnTime"
       ].forEach(f => {
@@ -68,7 +68,7 @@ saveBooking = async (req, res) => {
       // —— CREATE FLOW —— 
       // Required on create:
       const required = [
-        'carId', 'status', 'rentPrice', 'totalPrice', 'discount',
+        'carId', 'status', 'totalPrice', 'discount',
         'pickupCity', 'dropOffCity', 'insuranceFee', 'serviceFee',
         'paymentMethod', 'pickDate', 'pickTime', 'returnDate', 'returnTime'
       ];
