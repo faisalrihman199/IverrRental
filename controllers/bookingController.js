@@ -231,6 +231,7 @@ saveBooking = async (req, res) => {
 getBookings = async (req, res) => {
   try {
     const {
+      id,
       userId: qUserId,
       reservation,
       carId,
@@ -238,25 +239,23 @@ getBookings = async (req, res) => {
       startDate,
       endDate,
       startTime,
-      endTime,
-      mine
+      endTime
     } = req.query;
 
     // Determine the effective userId
-    const userId = qUserId || mine?req.user.id:null;
+    const userId = qUserId || req.user.id;
 
     // Base where clause
     const where = {};
     if (reservation === "true") {
       where["$Car.userId$"] = userId;
     } else {
-      if(userId ){
-        where.userId = userId;
-      }
+      where.userId = userId;
     }
 
     // Additional optional filters
     if (carId)  where.carId  = carId;
+    if (id)  where.id  = id;
     if (status) where.status = status;
 
     // Date overlap filtering
