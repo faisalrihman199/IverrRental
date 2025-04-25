@@ -90,6 +90,9 @@ saveBooking = async (req, res) => {
         });
       }
 
+     
+
+
       // Car exists
       const car = await Car.findByPk(carId, { transaction });
       if (!car) {
@@ -215,7 +218,40 @@ saveBooking = async (req, res) => {
 
     await transaction.commit();
     const msg = id ? "Booking updated." : "Booking created.";
-    return res.status(id ? 200 : 201).json({ success: true, message: msg, booking });
+    res.status(id ? 200 : 201).json({ success: true, message: msg, booking });
+    setTimeout(async () => {
+      try {
+        // re-fetch car including its owner
+        const carWithOwner = await Car.findOne({
+          where: { id: booking.carId },
+          include: [{ model: User, attributes: ["firstName","lastName"] }]
+        });
+
+        if (!carWithOwner) return;
+        const owner = carWithOwner.User;
+        const ownerName = `${owner.firstName} ${owner.lastName}`;
+        const carNum = carWithOwner.number;
+
+        // choose heading & content based on create vs update
+        const heading = id
+          ? `Booking Updated for ${carNum}`
+          : `New Booking for ${carNum}`;
+
+        const content = id
+          ? `Hello ${ownerName}, your booking (ID ${booking.id}) for car ${carNum} has been updated. Pick-up: ${booking.pickDate} at ${booking.pickTime}, Return: ${booking.returnDate} at ${booking.returnTime}.`
+          : `Hello ${ownerName}, a new booking (ID ${booking.id}) has been made for your car ${carNum}. Pick-up: ${booking.pickDate} at ${booking.pickTime}, Return: ${booking.returnDate} at ${booking.returnTime}.`;
+
+        await addNotification({
+          userId:    carWithOwner.userId,
+          type:      "booking",
+          heading,
+          content,
+          status:    "unread"
+        });
+      } catch (notifyErr) {
+        console.error("Error sending booking notification:", notifyErr);
+      }
+    }, 0);
   } catch (err) {
     await transaction.rollback();
     console.error("Error in saveBooking:", err);
