@@ -50,6 +50,11 @@ exports.addMessage = async (req, res) => {
           createdFor: receiverId
         }, { transaction: t });
       }
+      else{
+        await convo.update({
+          status:"open"
+        },{ transaction: t })
+      }
     }
 
     // 2) Optional file upload
