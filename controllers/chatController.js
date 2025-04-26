@@ -3,6 +3,8 @@ const { Op }      = require('sequelize');
 const models       = require('../models');
 const Conversation = models.Conversation;
 const Message      = models.Message;
+const Booking      = models.Booking;
+const Car      = models.Car;
 const User=models.User;
 
 const sequelize    = models.sequelize;
@@ -15,45 +17,70 @@ function notifyOtherUser(id, notification){
 }
 
 exports.addMessage = async (req, res) => {
-  // wrap DB ops in a nested try/catch to separate transaction errors
   const t = await sequelize.transaction();
   let message;
   let delivered = false;
+
   try {
-    const senderId   = req.user.id;
+    const senderId = req.user.id;
     const { conversationId } = req.query;
-    const { content, receiverId, replied } = req.body;
+    const { content, receiverId, replied, booking } = req.body;
 
     if (!receiverId) {
       throw { status: 400, message: 'receiverId is required' };
     }
 
-    // 1) Find or create conversation
     let convo;
+
     if (conversationId) {
       convo = await Conversation.findByPk(conversationId, { transaction: t });
       if (!convo) throw { status: 404, message: 'Conversation not found.' };
     } else {
+      if (!booking) {
+        throw { status: 400, message: 'booking is required when creating a new conversation' };
+      }
+
+      // 🛡️ Fetch the booking and check permission
+      const bookingRecord = await Booking.findByPk(booking, {
+        include: [{
+          model: Car,    // Assuming Car model is associated
+          attributes: ['id', 'userId']
+        }],
+        transaction: t
+      });
+
+      if (!bookingRecord) {
+        throw { status: 404, message: 'Booking not found.' };
+      }
+
+      const isBookingUser = bookingRecord.userId === senderId;
+      const isCarOwner    = bookingRecord.Car && bookingRecord.Car.userId === senderId;
+
+      if (!isBookingUser && !isCarOwner) {
+        throw { status: 403, message: 'You do not have access to this booking.' };
+      }
+
+      // ✅ Now check if conversation exists
       convo = await Conversation.findOne({
         where: {
           [Op.or]: [
             { createdBy: senderId, createdFor: receiverId },
             { createdBy: receiverId, createdFor: senderId }
-          ]
+          ],
+          booking: booking
         },
         transaction: t
       });
+
       if (!convo) {
         convo = await Conversation.create({
           status:    'open',
           createdBy: senderId,
-          createdFor: receiverId
+          createdFor: receiverId,
+          booking:    booking
         }, { transaction: t });
-      }
-      else{
-        await convo.update({
-          status:"open"
-        },{ transaction: t })
+      } else {
+        await convo.update({ status: 'open' }, { transaction: t });
       }
     }
 
@@ -79,7 +106,7 @@ exports.addMessage = async (req, res) => {
     convo.lastMessage = content || fileUrl;
     await convo.save({ transaction: t });
 
-    // 5) Check socket, set delivered status within transaction
+    // 5) Check socket, set delivered status
     const clientSocket = clients[receiverId];
     if (clientSocket && clientSocket.readyState === WebSocket.OPEN) {
       message.status = 'delivered';
@@ -87,8 +114,8 @@ exports.addMessage = async (req, res) => {
       delivered = true;
     }
 
-    // commit DB changes
     await t.commit();
+
   } catch (err) {
     await t.rollback();
     console.error('Transaction error in addMessage:', err);
@@ -99,9 +126,10 @@ exports.addMessage = async (req, res) => {
   const payload = message.get({ plain: true });
   sendMessage(message.receiver, payload);
 
-  // 7) Return response
   return res.status(201).json({ success: true, data: payload, delivered });
 };
+
+
 
 exports.getAllConversations = async (req, res) => {
   try {
@@ -159,6 +187,32 @@ exports.getAllConversations = async (req, res) => {
   }
 };
 
+exports.getAllUsersConversations = async (req, res) => {
+  try {
+    const conversations = await Conversation.findAll({
+      include: [
+        { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] },
+        { model: User, as: 'recipient', attributes: ['id', 'firstName', 'lastName', 'email'] }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    const formattedConversations = conversations.map(c => ({
+      id: c.id,
+      renter: `${c.owner?.firstName || ''} ${c.owner?.lastName || ''}`.trim(),
+      renterEmail: c.owner?.email || '',
+      owner: `${c.recipient?.firstName || ''} ${c.recipient?.lastName || ''}`.trim(),
+      ownerEmail: c.recipient?.email || ''
+    }));
+
+    return res.status(200).json({ success: true, data: formattedConversations });
+
+  } catch (err) {
+    console.error('Error in getAllConversationDetails:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 
 
 
@@ -173,7 +227,16 @@ exports.getOneChat = async (req, res) => {
     }
 
     // Load conversation
-    const convo = await Conversation.findByPk(convoId);
+    const convo = await Conversation.findByPk(convoId, {
+      include: [{
+        model: Booking,
+        include: [{
+          model: Car,
+          attributes: ['name', 'number']
+        }]
+      }]
+    });
+
     if (!convo) {
       return res.status(404).json({ success: false, message: 'Conversation not found' });
     }
@@ -233,10 +296,21 @@ exports.getOneChat = async (req, res) => {
       return msgData;
     });
 
+    // Fetch car name if available
+    let carName = null;
+    let carNumber = null;
+    if (convo.Booking && convo.Booking.Car) {
+      carName = convo.Booking.Car.name;
+      carNumber = convo.Booking.Car.number;
+    }
+
     // Respond with the conversation details and messages
     res.status(200).json({
       success: true,
       data: {
+        BookingId: convo.Booking.id,
+        carName: carName || null,
+        carNumber: carNumber || null,
         otherUser,
         messages
       }
@@ -378,6 +452,73 @@ exports.deleteConversation = async (req, res) => {
 
   } catch (err) {
     console.error('Error in deleteConversation:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+
+exports.getChatWithUsers = async (req, res) => {
+  try {
+    const convoId = req.query.id;
+
+    if (!convoId) {
+      return res.status(400).json({ success: false, message: 'Conversation id is required' });
+    }
+
+    // Load conversation with owner and renter
+    const convo = await Conversation.findByPk(convoId, {
+      include: [
+        { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email', 'image'] },
+        { model: User, as: 'recipient', attributes: ['id', 'firstName', 'lastName', 'email', 'image'] }
+      ]
+    });
+
+    if (!convo) {
+      return res.status(404).json({ success: false, message: 'Conversation not found' });
+    }
+
+    // Get all messages
+    const allMessages = await Message.findAll({
+      where: { conversationId: convoId },
+      order: [['createdAt', 'ASC']]
+    });
+
+    // Format the messages
+    const messages = allMessages.map(msg => {
+      const msgData = msg.toJSON();
+
+      if (msg.deleted === 'everyone') {
+        msgData.content = 'This message has been deleted for Everyone';
+        msgData.file = null;
+      } else if (msg.deleted === 'me') {
+        msgData.content = 'This message has been deleted for You';
+        msgData.file = null;
+      }
+
+      return msgData;
+    });
+
+    const response = {
+      conversationId: convo.id,
+      renter: {
+        id: convo.recipient?.id || null,
+        name: `${convo.recipient?.firstName || ''} ${convo.recipient?.lastName || ''}`.trim(),
+        email: convo.recipient?.email || '',
+        image: convo.recipient?.image || null
+      },
+      owner: {
+        id: convo.owner?.id || null,
+        name: `${convo.owner?.firstName || ''} ${convo.owner?.lastName || ''}`.trim(),
+        email: convo.owner?.email || '',
+        image: convo.owner?.image || null
+      },
+      messages
+    };
+
+    return res.status(200).json({ success: true, data: response });
+
+  } catch (err) {
+    console.error('Error in getChatWithUsers:', err);
     return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };

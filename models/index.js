@@ -69,6 +69,10 @@ User.hasMany(Conversation, { foreignKey: 'createdFor', as:'recipient' });
 Conversation.belongsTo(User, { foreignKey: 'createdFor', as:'recipient'});
 
 
+Booking.hasOne(Conversation, { foreignKey: 'booking' });
+Conversation.belongsTo(Booking, { foreignKey: 'booking'});
+
+
 Conversation.hasMany(Message, { foreignKey: 'conversationId' });
 Message.belongsTo(Conversation, { foreignKey: 'conversationId'});
 

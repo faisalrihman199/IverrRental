@@ -37,6 +37,16 @@ const Conversation = sequelize.define("Conversation", {
     },
     onUpdate: "CASCADE",
     onDelete: "SET NULL",
+  },
+  booking: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: "Bookings",
+      key: "id",
+    },
+    onUpdate: "CASCADE",
+    onDelete: "CASCADE",
   }
 }, {
   timestamps: true,
