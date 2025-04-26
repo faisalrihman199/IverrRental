@@ -393,7 +393,7 @@ getBookings = async (req, res) => {
         dropTime: fmtTime(b.returnTime),
         pickupOTP: b.pickupOTP,
         dropOffOTP: b.dropOffOTP,
-        conversationId: b?.Conversation?.id,
+        conversationId: b?.Conversation?.id || null,
         car: {
           id: car.id,
           name: car.name,

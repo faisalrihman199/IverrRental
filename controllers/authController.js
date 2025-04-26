@@ -476,7 +476,6 @@ const authController = {
           const response = users.map(user => {
               const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
               const email = user.email;
-  
               const userDocs = user.userDocument;
   
               const allDocs = {};
@@ -485,43 +484,48 @@ const authController = {
               const approvedFiles = [];
   
               if (userDocs) {
-                  const docFields = ['cnicOrPassport', 'drivingLicense', 'companyDoc'];
+                  const docFields = [
+                      { field: 'cnicOrPassport', statusField: 'cnicOrPassportStatus' },
+                      { field: 'drivingLicense', statusField: 'drivingLicenseStatus' },
+                      { field: 'companyDoc', statusField: 'companyDocStatus' },
+                  ];
   
-                  for (const field of docFields) {
-                      if (userDocs[field]) {
-                          let files = [];
-                          try {
+                  for (const { field, statusField } of docFields) {
+                      let files = [];
+                      try {
+                          if (userDocs[field]) {
                               files = JSON.parse(userDocs[field]);
-                          } catch (err) {
-                              console.warn(`Failed to parse files for ${field}:`, err);
                           }
+                      } catch (err) {
+                          console.warn(`Failed to parse files for ${field}:`, err);
+                      }
   
-                          allDocs[field] = files;
+                      allDocs[field] = files;
   
-                          // Mocked status check — assuming you have statuses per doc stored somewhere separately
-                          const docStatus = userDocs[`${field}Status`] || 'pending'; // default pending
-                          const updatedAt = userDocs.updatedAt;
+                      const docStatus = userDocs[statusField] || 'pending';
+                      const updatedAt = userDocs.updatedAt;
   
-                          if (docStatus === 'pending') {
-                              pendingDocs.push(field);
-                          } else {
-                              history.push({
-                                  updated_at: updatedAt,
+                      if (docStatus === 'pending') {
+                          pendingDocs.push(field);
+                      } else {
+                          history.push({
+                              updated_at: updatedAt,
+                              docType: field,
+                              status: docStatus,
+                          });
+  
+                          if (docStatus === 'approved') {
+                              approvedFiles.push({
                                   docType: field,
-                                  status: docStatus,
+                                  files: files,
                               });
-                              if (docStatus === 'approved') {
-                                  approvedFiles.push({
-                                      docType: field,
-                                      files: files,
-                                  });
-                              }
                           }
                       }
                   }
               }
   
               return {
+                  id: user.id,
                   name: fullName,
                   email,
                   allDocs,
@@ -538,6 +542,7 @@ const authController = {
           return res.status(500).json({ success: false, message: "Failed to fetch users with docs" });
       }
   },
+  
   
     
 }
