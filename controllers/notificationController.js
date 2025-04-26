@@ -16,6 +16,37 @@ const sendNotificationToClient = (clientId, notification) => {
     return { success: false, message: 'Notification sending failed' };
   }
 };
+const sendMessage = (clientId, notification) => {
+  const clientSocket = clients[clientId];
+
+  if (clientSocket && clientSocket.readyState === WebSocket.OPEN) {
+    clientSocket.send(JSON.stringify({
+      event: socketEvents.MESSAGE,  // Use event type for clarity
+      notification: notification
+    }));
+    console.log(`Notification sent to client ${clientId}: ${notification}`);
+    return { success: true, message: `Notification sent to client ${clientId}: ${notification}` };
+  } else {
+    console.log(`Client ${clientId} is not connected or has closed the connection.`);
+    return { success: false, message: 'Notification sending failed' };
+  }
+};
+
+const chatNotify = (clientId, notification) => {
+  const clientSocket = clients[clientId];
+
+  if (clientSocket && clientSocket.readyState === WebSocket.OPEN) {
+    clientSocket.send(JSON.stringify({
+      event: socketEvents.CHAT_NOTIFY,  // Use event type for clarity
+      notification: notification
+    }));
+    console.log(`Notification sent to client ${clientId}: ${notification}`);
+    return { success: true, message: `Notification sent to client ${clientId}: ${notification}` };
+  } else {
+    console.log(`Client ${clientId} is not connected or has closed the connection.`);
+    return { success: false, message: 'Notification sending failed' };
+  }
+};
 
 // Controller function to trigger message sending
 const send = async (req, res) => {
@@ -130,4 +161,4 @@ const getNotifications = async (req, res) => {
   }
 };
 
-module.exports = {  sendNotificationToClient, send, getNotifications,updateStatus, addNotification, createNotification };
+module.exports = {  sendNotificationToClient, send, getNotifications,updateStatus, addNotification, createNotification,sendMessage,chatNotify };

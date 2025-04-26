@@ -22,6 +22,8 @@ const Insurance = require('./insurance');
 const CarDocument = require('./carDocuments');
 const Calendar = require('./calender');
 const BookingDocument = require('./bookingDocument');
+const Conversation = require('./conversation');
+const Message = require('./message');
 
 const models = {
     User,
@@ -43,7 +45,9 @@ const models = {
     Insurance,
     CarDocument,
     Calendar,
-    BookingDocument
+    BookingDocument,
+    Conversation,
+    Message
 };
 
 // Define relationships
@@ -51,12 +55,23 @@ const models = {
 Car.hasMany(Review, { foreignKey: 'carId' });
 Review.belongsTo(Car, { foreignKey: 'carId' });
 
-User.hasMany(Review, { foreignKey: 'revieweeId', as: 'reviewee' });
-Review.belongsTo(User, { foreignKey: 'revieweeId', as: 'reviewee' });
-
 // Define association between Review and User for writerId
 User.hasMany(Review, { foreignKey: 'writerId', as: 'writer' });
 Review.belongsTo(User, { foreignKey: 'writerId', as: 'writer' });
+User.hasMany(Review, { foreignKey: 'revieweeId', as: 'reviewee' });
+Review.belongsTo(User, { foreignKey: 'revieweeId', as: 'reviewee' });
+
+
+User.hasMany(Conversation, { foreignKey: 'createdBy', as:'owner' });
+Conversation.belongsTo(User, { foreignKey: 'createdBy', as:'owner'});
+
+User.hasMany(Conversation, { foreignKey: 'createdFor', as:'recipient' });
+Conversation.belongsTo(User, { foreignKey: 'createdFor', as:'recipient'});
+
+
+Conversation.hasMany(Message, { foreignKey: 'conversationId' });
+Message.belongsTo(Conversation, { foreignKey: 'conversationId'});
+
 
 Booking.hasOne(BookingDocument, { foreignKey: 'bookingId' });
 BookingDocument.belongsTo(Booking, { foreignKey: 'bookingId' });

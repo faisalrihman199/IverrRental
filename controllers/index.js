@@ -17,6 +17,7 @@ const notifications=require("./notificationController")
 const reviews=require("./reviewController")
 const Insurance = require('./insuranceController')
 const Calendar = require('./calenderController')
-const controllers = {admin,auth,otp,banner,city, carType,carBrand,gallery,faq,facility,coupon,car,favouriteCars, page,booking, notifications,reviews, Insurance, Calendar}
+const Chat = require('./chatController')
+const controllers = {admin,auth,otp,banner,city, carType,carBrand,gallery,faq,facility,coupon,car,favouriteCars, page,booking, notifications,reviews, Insurance, Calendar,Chat}
 
 module.exports = controllers
