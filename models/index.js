@@ -80,6 +80,10 @@ Message.belongsTo(Conversation, { foreignKey: 'conversationId'});
 Booking.hasOne(BookingDocument, { foreignKey: 'bookingId' });
 BookingDocument.belongsTo(Booking, { foreignKey: 'bookingId' });
 
+
+User.hasMany(UserDocument, { foreignKey: 'userId',as: 'userDocument' });
+UserDocument.belongsTo(User, { foreignKey: 'userId',as: 'userDocument', });
+
 Car.hasMany(Calendar, { foreignKey: 'carId' });
 Calendar.belongsTo(Car, { foreignKey: 'carId' });
 

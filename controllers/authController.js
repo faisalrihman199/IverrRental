@@ -460,7 +460,85 @@ const authController = {
             console.error("Error deleting user account:", error);
             return res.status(500).json({ success: false, message: "Error deleting user account" });
         }
-    }
+    },
+
+    getAllUsersWithDocs: async (req, res) => {
+      try {
+          const users = await models.User.findAll({
+              include: [
+                  {
+                      model: models.UserDocument,
+                      as: 'userDocument',
+                  }
+              ]
+          });
+  
+          const response = users.map(user => {
+              const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+              const email = user.email;
+  
+              const userDocs = user.userDocument;
+  
+              const allDocs = {};
+              const pendingDocs = [];
+              const history = [];
+              const approvedFiles = [];
+  
+              if (userDocs) {
+                  const docFields = ['cnicOrPassport', 'drivingLicense', 'companyDoc'];
+  
+                  for (const field of docFields) {
+                      if (userDocs[field]) {
+                          let files = [];
+                          try {
+                              files = JSON.parse(userDocs[field]);
+                          } catch (err) {
+                              console.warn(`Failed to parse files for ${field}:`, err);
+                          }
+  
+                          allDocs[field] = files;
+  
+                          // Mocked status check — assuming you have statuses per doc stored somewhere separately
+                          const docStatus = userDocs[`${field}Status`] || 'pending'; // default pending
+                          const updatedAt = userDocs.updatedAt;
+  
+                          if (docStatus === 'pending') {
+                              pendingDocs.push(field);
+                          } else {
+                              history.push({
+                                  updated_at: updatedAt,
+                                  docType: field,
+                                  status: docStatus,
+                              });
+                              if (docStatus === 'approved') {
+                                  approvedFiles.push({
+                                      docType: field,
+                                      files: files,
+                                  });
+                              }
+                          }
+                      }
+                  }
+              }
+  
+              return {
+                  name: fullName,
+                  email,
+                  allDocs,
+                  pendingDocsCount: pendingDocs.length,
+                  history,
+                  approvedFiles
+              };
+          });
+  
+          return res.status(200).json({ success: true, data: response });
+  
+      } catch (error) {
+          console.error('Error fetching users with docs:', error);
+          return res.status(500).json({ success: false, message: "Failed to fetch users with docs" });
+      }
+  },
+  
     
 }
 

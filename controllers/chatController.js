@@ -192,26 +192,57 @@ exports.getAllUsersConversations = async (req, res) => {
     const conversations = await Conversation.findAll({
       include: [
         { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email'] },
-        { model: User, as: 'recipient', attributes: ['id', 'firstName', 'lastName', 'email'] }
+        { model: User, as: 'recipient', attributes: ['id', 'firstName', 'lastName', 'email'] },
+        {
+          model: Booking,
+          include: [{
+            model: Car,
+            attributes: ['id', 'name', 'number']  // Changed carNumber to number
+          }]
+        }
       ],
       order: [['createdAt', 'DESC']]
     });
 
-    const formattedConversations = conversations.map(c => ({
-      id: c.id,
-      renter: `${c.owner?.firstName || ''} ${c.owner?.lastName || ''}`.trim(),
-      renterEmail: c.owner?.email || '',
-      owner: `${c.recipient?.firstName || ''} ${c.recipient?.lastName || ''}`.trim(),
-      ownerEmail: c.recipient?.email || ''
-    }));
+    const formattedConversations = conversations.map(c => {
+      const booking = c.Booking;
+      const car = booking?.Car;
+
+      let renterName = '';
+      let renterEmail = '';
+      let ownerName = '';
+      let ownerEmail = '';
+
+      if (booking) {
+        // Renter is booking.userId (user who made the booking)
+        renterName = `${c.owner?.firstName || ''} ${c.owner?.lastName || ''}`.trim();
+        renterEmail = c.owner?.email || '';
+
+        // Owner is booking.carId.userId (the user who owns the car)
+        const owner = c.owner?.id === booking?.userId ? c.recipient : c.owner;
+        ownerName = `${owner?.firstName || ''} ${owner?.lastName || ''}`.trim();
+        ownerEmail = owner?.email || '';
+      }
+
+      return {
+        id: c.id,
+        renter: renterName,
+        renterEmail: renterEmail,
+        owner: ownerName,
+        ownerEmail: ownerEmail,
+        carName: car?.name || '',
+        carNumber: car?.number || ''  // Changed carNumber to number
+      };
+    });
 
     return res.status(200).json({ success: true, data: formattedConversations });
 
   } catch (err) {
-    console.error('Error in getAllConversationDetails:', err);
+    console.error('Error in getAllUsersConversations:', err);
     return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
+
 
 
 
@@ -465,17 +496,50 @@ exports.getChatWithUsers = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Conversation id is required' });
     }
 
-    // Load conversation with owner and renter
+    // Load conversation with owner, recipient, and booking details
     const convo = await Conversation.findByPk(convoId, {
       include: [
         { model: User, as: 'owner', attributes: ['id', 'firstName', 'lastName', 'email', 'image'] },
-        { model: User, as: 'recipient', attributes: ['id', 'firstName', 'lastName', 'email', 'image'] }
+        { model: User, as: 'recipient', attributes: ['id', 'firstName', 'lastName', 'email', 'image'] },
+        {
+          model: Booking,
+          include: [{
+            model: Car,
+            attributes: ['id', 'name', 'number', 'userId']  // make sure we get car.userId (owner)
+          }]
+        }
       ]
     });
 
     if (!convo) {
       return res.status(404).json({ success: false, message: 'Conversation not found' });
     }
+
+    const booking = convo.Booking;
+    const car = booking?.Car;
+
+    let renter = null;
+    let owner = null;
+
+    if (booking && car) {
+      // renter => booking.userId
+      // owner => booking.car.userId
+      if (convo.owner?.id === booking.userId) {
+        renter = convo.owner;
+      } else if (convo.recipient?.id === booking.userId) {
+        renter = convo.recipient;
+      }
+
+      if (convo.owner?.id === car.userId) {
+        owner = convo.owner;
+      } else if (convo.recipient?.id === car.userId) {
+        owner = convo.recipient;
+      }
+    }
+
+    // fallback in case no booking or missing car (optional safety)
+    renter = renter || convo.recipient;
+    owner = owner || convo.owner;
 
     // Get all messages
     const allMessages = await Message.findAll({
@@ -500,17 +564,19 @@ exports.getChatWithUsers = async (req, res) => {
 
     const response = {
       conversationId: convo.id,
+      carName: car?.name || '',
+      carNumber: car?.number || '',
       renter: {
-        id: convo.recipient?.id || null,
-        name: `${convo.recipient?.firstName || ''} ${convo.recipient?.lastName || ''}`.trim(),
-        email: convo.recipient?.email || '',
-        image: convo.recipient?.image || null
+        id: renter?.id || null,
+        name: `${renter?.firstName || ''} ${renter?.lastName || ''}`.trim(),
+        email: renter?.email || '',
+        image: renter?.image || null
       },
       owner: {
-        id: convo.owner?.id || null,
-        name: `${convo.owner?.firstName || ''} ${convo.owner?.lastName || ''}`.trim(),
-        email: convo.owner?.email || '',
-        image: convo.owner?.image || null
+        id: owner?.id || null,
+        name: `${owner?.firstName || ''} ${owner?.lastName || ''}`.trim(),
+        email: owner?.email || '',
+        image: owner?.image || null
       },
       messages
     };
@@ -522,6 +588,7 @@ exports.getChatWithUsers = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
+
 
 
 

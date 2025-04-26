@@ -335,6 +335,9 @@ getBookings = async (req, res) => {
         },
         {
           model: BookingDocument
+        },
+        {
+          model:models.Conversation
         }
       ],
       order: [["createdAt", "DESC"]]
@@ -390,6 +393,7 @@ getBookings = async (req, res) => {
         dropTime: fmtTime(b.returnTime),
         pickupOTP: b.pickupOTP,
         dropOffOTP: b.dropOffOTP,
+        conversationId: b.Conversation.id || null,
         car: {
           id: car.id,
           name: car.name,
