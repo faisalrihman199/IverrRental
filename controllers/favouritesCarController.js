@@ -59,7 +59,20 @@ const getFavouriteCars = async (req, res) => {
             {model:models.CarBrand},
             {model:models.CarType},
             {model:models.City},
-            {model:models.Review},
+            {model:models.Review,
+              include: [
+                {
+                  model: models.User,
+                  as: 'reviewee',  // Alias for reviewee user
+                  attributes: ['firstName', 'lastName'],  // Only include firstName and lastName
+                },
+                {
+                  model: models.User,
+                  as: 'writer',  // Alias for writer user
+                  attributes: ['firstName', 'lastName'],  // Only include firstName and lastName
+                },
+              ],
+            },
             {model:models.Calendar},
             {model:models.CarDocument},
             {model:models.Insurance},

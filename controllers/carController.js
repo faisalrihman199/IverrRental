@@ -202,7 +202,22 @@ const getCars = async (req, res) => {
         Insurance,
         models.Calendar,
         models.CarDocument,
-        models.Review
+        {
+          model: Review,
+          include: [
+            {
+              model: models.User,
+              as: 'reviewee',  // Alias for reviewee user
+              attributes: ['firstName', 'lastName'],  // Only include firstName and lastName
+            },
+            {
+              model: models.User,
+              as: 'writer',  // Alias for writer user
+              attributes: ['firstName', 'lastName'],  // Only include firstName and lastName
+            },
+          ],
+
+        }
       ]
     });
     
