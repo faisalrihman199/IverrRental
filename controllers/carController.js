@@ -247,9 +247,9 @@ const getCars = async (req, res) => {
       const combined = [...carImages, ...galleryImages];
       c.images = combined;
       c.image = combined[0] || null;
-    
       // Owner
       c.owner = c.User;
+      c.ownerName = c.User?.firstName + " "+c.User?.lastName;
     
       // Documents
       if (c.CarDocument) {

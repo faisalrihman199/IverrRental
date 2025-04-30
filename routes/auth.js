@@ -15,6 +15,7 @@ router.post('/changePassword', authenticateToken,controllers.auth.changePassword
 router.get('/info', authenticateToken,controllers.auth.userInfo);
 router.get('/updateStatus', adminAuth,controllers.auth.updateUserStatus);
 router.get('/all_docs', adminAuth,controllers.auth.getAllUsersWithDocs);
+router.post('/docs/save', adminAuth,controllers.auth.updateDocumentStatus);
 router.get('/users', adminAuth,controllers.auth.getNonAdminUsers);
 router.delete('/delete', authenticateToken,controllers.auth.deleteUserAccount);
 router.post('/changeEmail', authenticateToken,controllers.auth.changeEmail);

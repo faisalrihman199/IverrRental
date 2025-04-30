@@ -394,6 +394,8 @@ getBookings = async (req, res) => {
         pickupOTP: b.pickupOTP,
         dropOffOTP: b.dropOffOTP,
         conversationId: b?.Conversation?.id || null,
+        carName:car.name,
+        carImage:images.length>0 && images[0],
         car: {
           id: car.id,
           name: car.name,

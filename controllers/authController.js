@@ -351,6 +351,7 @@ const authController = {
             // Format joinedDate
             const formattedUsers = users.map(user => ({
                 ...user.get(),
+                fullName:`${user.firstName} ${user.lastName}`,
                 joinedDate: moment(user.joinedDate).format("DD-MMM-YYYY")
             }));
 
@@ -464,76 +465,91 @@ const authController = {
 
     getAllUsersWithDocs: async (req, res) => {
       try {
-          const users = await models.User.findAll({
-              include: [
-                  {
-                      model: models.UserDocument,
-                      as: 'userDocument',
+          // Fetch all users
+          const users = await models.User.findAll();
+  
+          // Fetch all documents for the users (you can filter by userId later)
+          const userDocs = await models.UserDocument.findAll();
+  
+          // Map the documents to each user
+          const response = users
+              .map(user => {
+                  const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+                  const email = user.email;
+  
+                  // Filter documents for this user
+                  const userDocuments = userDocs.filter(doc => doc.userId === user.id);
+  
+                  // Skip users without documents
+                  if (userDocuments.length === 0) {
+                      return null; // Returning null will exclude this user from the final result
                   }
-              ]
-          });
   
-          const response = users.map(user => {
-              const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-              const email = user.email;
-              const userDocs = user.userDocument;
+                  // Initialize document categories
+                  const allDocs = {
+                      cnicOrPassport: [],
+                      drivingLicense: [],
+                      companyDoc: []
+                  };
+                  const pendingDocs = [];
+                  const history = [];
+                  const approvedFiles = [];
   
-              const allDocs = {};
-              const pendingDocs = [];
-              const history = [];
-              const approvedFiles = [];
+                  userDocuments.forEach(userDoc => {
+                      const docFields = [
+                          { field: 'cnicOrPassport', statusField: 'cnicOrPassportStatus' },
+                          { field: 'drivingLicense', statusField: 'drivingLicenseStatus' },
+                          { field: 'companyDoc', statusField: 'companyDocStatus' },
+                      ];
   
-              if (userDocs) {
-                  const docFields = [
-                      { field: 'cnicOrPassport', statusField: 'cnicOrPassportStatus' },
-                      { field: 'drivingLicense', statusField: 'drivingLicenseStatus' },
-                      { field: 'companyDoc', statusField: 'companyDocStatus' },
-                  ];
-  
-                  for (const { field, statusField } of docFields) {
-                      let files = [];
-                      try {
-                          if (userDocs[field]) {
-                              files = JSON.parse(userDocs[field]);
+                      for (const { field, statusField } of docFields) {
+                          let files = [];
+                          try {
+                              // Ensure we check for null or empty data before parsing
+                              if (userDoc[field] && userDoc[field].trim()) {
+                                  files = JSON.parse(userDoc[field]);
+                              }
+                          } catch (err) {
+                              console.warn(`Failed to parse files for ${field}:`, err);
                           }
-                      } catch (err) {
-                          console.warn(`Failed to parse files for ${field}:`, err);
-                      }
   
-                      allDocs[field] = files;
+                          // Add files to the allDocs object
+                          allDocs[field] = files;
   
-                      const docStatus = userDocs[statusField] || 'pending';
-                      const updatedAt = userDocs.updatedAt;
+                          // Check document status
+                          const docStatus = userDoc[statusField] || 'pending';
+                          const updatedAt = userDoc.updatedAt;
   
-                      if (docStatus === 'pending') {
-                          pendingDocs.push(field);
-                      } else {
-                          history.push({
-                              updated_at: updatedAt,
-                              docType: field,
-                              status: docStatus,
-                          });
-  
-                          if (docStatus === 'approved') {
-                              approvedFiles.push({
+                          if (docStatus === 'pending') {
+                              pendingDocs.push(field);
+                          } else {
+                              history.push({
+                                  updated_at: updatedAt,
                                   docType: field,
-                                  files: files,
+                                  status: docStatus,
                               });
+  
+                              if (docStatus === 'approved') {
+                                  approvedFiles.push({
+                                      docType: field,
+                                      files: files,
+                                  });
+                              }
                           }
                       }
-                  }
-              }
+                  });
   
-              return {
-                  id: user.id,
-                  name: fullName,
-                  email,
-                  allDocs,
-                  pendingDocsCount: pendingDocs.length,
-                  history,
-                  approvedFiles
-              };
-          });
+                  return {
+                      id: user.id,
+                      name: fullName,
+                      email,
+                      allDocs,
+                      pendingDocsCount: pendingDocs.length,
+                      history,
+                      approvedFiles
+                  };
+              })
+              .filter(user => user !== null); // Filter out users without documents
   
           return res.status(200).json({ success: true, data: response });
   
@@ -542,6 +558,57 @@ const authController = {
           return res.status(500).json({ success: false, message: "Failed to fetch users with docs" });
       }
   },
+  updateDocumentStatus: async (req, res) => {
+    try {
+        const { id } = req.query;  // Get userId from the query string
+        const userId=id;
+        const { cnicOrPassportStatus, drivingLicenseStatus, companyDocStatus } = req.body;  // Get statuses from the request body
+
+        // Find the user with the provided userId
+        const user = await models.User.findByPk(userId);
+        
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        // Fetch the user's documents
+        const userDocuments = await models.UserDocument.findAll({ where: { userId } });
+
+        // If no documents exist for this user
+        if (userDocuments.length === 0) {
+            return res.status(404).json({ success: false, message: "No documents found for this user" });
+        }
+
+        // Loop through each document and update the status
+        for (const userDoc of userDocuments) {
+            // Update the status fields if they exist in the request body
+            if (cnicOrPassportStatus && userDoc.cnicOrPassportStatus !== cnicOrPassportStatus) {
+                userDoc.cnicOrPassportStatus = cnicOrPassportStatus;
+            }
+            if (drivingLicenseStatus && userDoc.drivingLicenseStatus !== drivingLicenseStatus) {
+                userDoc.drivingLicenseStatus = drivingLicenseStatus;
+            }
+            if (companyDocStatus && userDoc.companyDocStatus !== companyDocStatus) {
+                userDoc.companyDocStatus = companyDocStatus;
+            }
+
+            // Save the updated document status to the database
+            await userDoc.save();
+        }
+
+        // Return a success response
+        return res.status(200).json({ success: true, message: "Document statuses updated successfully" });
+
+    } catch (error) {
+        console.error('Error updating document statuses:', error);
+        return res.status(500).json({ success: false, message: "Failed to update document statuses" });
+    }
+}
+
+  
+  
+  
+  
   
   
     
