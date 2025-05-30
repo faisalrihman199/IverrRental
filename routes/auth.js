@@ -19,6 +19,7 @@ router.post('/docs/save', adminAuth,controllers.auth.updateDocumentStatus);
 router.get('/users', adminAuth,controllers.auth.getNonAdminUsers);
 router.delete('/delete', authenticateToken,controllers.auth.deleteUserAccount);
 router.post('/changeEmail', authenticateToken,controllers.auth.changeEmail);
+router.post('/emailExists',controllers.auth.checkEmailExists);
 
 
 router.post('/update', authenticateToken,uploader.fields([{ name: "image",maxCount: 1 }, // profile pic

@@ -4,6 +4,8 @@ const routes = require('./routes');
 const { sequelize } = require('./models');
 const cors = require("cors");
 const path = require('path');
+const scheduleFileCleanup = require('./schedulers/cleanOldDocs');
+scheduleFileCleanup();
 
 // Configure CORS middleware
 const corsOptions = {

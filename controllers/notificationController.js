@@ -110,7 +110,7 @@ const createNotification = async (req, res) => {
 const updateStatus = async (req, res) => {
   try {
       const { notificationId, status } = req.query;  // Get notificationId and status from query params
-
+      const user=req.user;
       // Validate the required fields
       if (!notificationId || !status) {
           return res.status(400).json({ success: false, message: 'notificationId and status are required' });
@@ -118,7 +118,10 @@ const updateStatus = async (req, res) => {
 
       // Find the notification by its ID
       const notification = await models.Notification.findOne({ where: { id: notificationId } });
+      if(notification && notification?.userId!==user?.id && user.role!=='admin'){
+        return res.status(403).json({ success: false, message: 'Not Allowed to update' });
 
+      }
       if (!notification) {
           return res.status(404).json({ success: false, message: 'Notification not found' });
       }

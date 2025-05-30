@@ -34,7 +34,7 @@ const getStorage = (folder) => multer.diskStorage({
 const fileFilter = (req, file, cb) => {
   // allow images, docs, csv, pdf, video
   const allowed = [
-    "image/jpeg","image/png","image/gif",
+    "image/jpeg","image/png","image/gif","image/webp",
     "text/plain","text/csv","application/pdf",
     "application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.ms-excel","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

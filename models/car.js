@@ -115,7 +115,7 @@ const Car = sequelize.define("Car", {
     },
     drivenKM: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
     },
     minHrsReq: {
         type: DataTypes.STRING,
