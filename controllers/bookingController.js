@@ -218,7 +218,21 @@ saveBooking = async (req, res) => {
 
     await transaction.commit();
     const msg = id ? "Booking updated." : "Booking created.";
-    res.status(id ? 200 : 201).json({ success: true, message: msg, booking });
+    const userDocs=await models.UserDocument.findAll({
+      where:{
+        userId:booking.userId,
+      }
+    })
+    if(!userDocs || userDocs.length<1){
+      const newNotification = await models.Notification.create({
+                userId: booking.userId,
+                type: "notify",
+                heading: "Document Missing",
+                content: "You did not provide relevant documents, please add them.",
+                status: "unread",
+      });
+    }
+    res.status(id ? 200 : 201).json({ success: true, message: msg, booking, userDocs });
     if (pickDate && returnDate ){
       setTimeout(async () => {
         try {
@@ -244,6 +258,13 @@ saveBooking = async (req, res) => {
   
           await addNotification({
             userId:    carWithOwner.userId,
+            type:      "booking",
+            heading,
+            content,
+            status:    "unread"
+          });
+          await addNotification({
+            userId:    booking.userId,
             type:      "booking",
             heading,
             content,
