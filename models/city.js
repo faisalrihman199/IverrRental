@@ -13,6 +13,14 @@ City.init({
         type: DataTypes.STRING,
         allowNull: false,
     },
+    lat: {
+        type: DataTypes.STRING,
+        allowNull: false,
+    },
+    long: {
+        type: DataTypes.STRING,
+        allowNull: false,
+    },
 }, {
     sequelize,
     modelName: 'City',

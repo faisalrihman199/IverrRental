@@ -4,7 +4,7 @@ const { City } = require('../models');
 const saveCity = async (req, res) => {
     try {
         const { id } = req.query; // Check if city ID is provided in query
-        const { name, status } = req.body;
+        const { name, status,lat,long } = req.body;
 
         if (!name || !status) {
             return res.status(400).json({ success: false, message: "Name and status are required." });
@@ -19,10 +19,12 @@ const saveCity = async (req, res) => {
             }
             city.name = name || city.name;
             city.status = status || city.status;
+            city.lat = lat || city.lat;
+            city.long = long || city.long;
             await city.save();
         } else {
             // Create new city
-            city = await City.create({ name, status });
+            city = await City.create({ name, status,lat,long });
         }
 
         res.status(200).json({ success: true, message: "City saved successfully.", city });
