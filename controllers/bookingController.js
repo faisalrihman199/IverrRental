@@ -228,7 +228,7 @@ saveBooking = async (req, res) => {
                 userId: booking.userId,
                 type: "notify",
                 heading: "Document Missing",
-                content: "You did not provide relevant documents, please add them.",
+                content: "Please upload in profile your personal documents to prepare your trip",
                 status: "unread",
       });
     }
@@ -246,15 +246,16 @@ saveBooking = async (req, res) => {
           const owner = carWithOwner.User;
           const ownerName = `${owner.firstName} ${owner.lastName}`;
           const carNum = carWithOwner.number;
+          const carModel = carWithOwner.model;
   
           // choose heading & content based on create vs update
           const heading = id
-            ? `Booking Updated for ${carNum}`
-            : `New Booking for ${carNum}`;
+            ? `Booking Updated for ${carNum || carModel}`
+            : `New Booking for ${carNum || carModel}`;
   
           const content = id
-            ? `Hello ${ownerName}, your booking (ID ${booking.id}) for car ${carNum} has been updated. Pick-up: ${booking.pickDate} at ${booking.pickTime}, Return: ${booking.returnDate} at ${booking.returnTime}.`
-            : `Hello ${ownerName}, a new booking (ID ${booking.id}) has been made for your car ${carNum}. Pick-up: ${booking.pickDate} at ${booking.pickTime}, Return: ${booking.returnDate} at ${booking.returnTime}.`;
+            ? `Hello ${ownerName}, your booking (ID ${booking.id}) for car ${carNum || carModel} has been updated. Pick-up: ${booking.pickDate} at ${booking.pickTime}, Return: ${booking.returnDate} at ${booking.returnTime}.`
+            : `Hello ${ownerName}, a new booking (ID ${booking.id}) has been made for car ${carNum || carModel}. Pick-up: ${booking.pickDate} at ${booking.pickTime}, Return: ${booking.returnDate} at ${booking.returnTime}.`;
   
           await addNotification({
             userId:    carWithOwner.userId,
