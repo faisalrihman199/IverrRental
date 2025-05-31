@@ -7,7 +7,7 @@ saveCar = async (req, res) => {
   try {
     const { id } = req.query;
     const {
-      name, number, driverName, driverPhone, rating,
+      name, number,model, driverName, driverPhone, rating,
       status, seat, AC, gearSystem, carTypeId, carBrandId,
       carCityIds, rentWithDriver, rentDriverLess, engineHP,
       priceType, fuelType, description, pickupAddress,
@@ -53,7 +53,7 @@ saveCar = async (req, res) => {
       const updateData = {
         userId: req.user.role === 'admin' ? car.userId : userId
       };
-      [ 'name','number','status','seat','AC','driverName','driverPhone','rating',
+      [ 'name','number','model','status','seat','AC','driverName','driverPhone','rating',
         'gearSystem','carTypeId','carBrandId','rentWithDriver','rentDriverLess',
         'engineHP','priceType','fuelType','description','pickupAddress','latitude',
         'longitude','drivenKM','minHrsReq','locationInfo'
@@ -79,7 +79,7 @@ saveCar = async (req, res) => {
       await car.update(updateData, { transaction: t });
     } else {
       car = await models.Car.create({
-        name, number, image: imagesJson, status, seat, AC,
+        name, number,model, image: imagesJson, status, seat, AC,
         driverName, driverPhone, rating, gearSystem,
         carTypeId, carBrandId, rentWithDriver, rentDriverLess,
         engineHP, priceType, fuelType, description, pickupAddress,
@@ -291,6 +291,10 @@ const getCars = async (req, res) => {
           c.locationInfo = [];
         }
       }
+      if (typeof c.paymentAccepted === 'string') {
+        c.paymentAccepted=JSON.parse(c.paymentAccepted)
+      }
+
     
       // Clean up
       delete c.Gallery;

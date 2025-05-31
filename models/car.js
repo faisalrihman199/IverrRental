@@ -8,7 +8,12 @@ const Car = sequelize.define("Car", {
     },
     number: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
+        unique: true,
+    },
+    model: {
+        type: DataTypes.STRING,
+        allowNull: true,
         unique: true,
     },
     image: {
@@ -126,7 +131,7 @@ const Car = sequelize.define("Car", {
         allowNull: true,
     },
     paymentAccepted: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT,
         allowNull: true,
     },
 
