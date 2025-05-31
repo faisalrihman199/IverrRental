@@ -217,6 +217,8 @@ saveBooking = async (req, res) => {
     }
 
     await transaction.commit();
+    console.log("Booking :", booking);
+    
     const msg = id ? "Booking updated." : "Booking created.";
     const userDocs=await models.UserDocument.findOne({
       where:{
@@ -233,7 +235,7 @@ saveBooking = async (req, res) => {
       });
     }
     res.status(id ? 200 : 201).json({ success: true, message: msg, booking, userDocs });
-    if (pickDate && returnDate ){
+    if (booking){
       setTimeout(async () => {
         try {
           // re-fetch car including its owner
