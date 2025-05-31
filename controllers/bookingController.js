@@ -218,12 +218,12 @@ saveBooking = async (req, res) => {
 
     await transaction.commit();
     const msg = id ? "Booking updated." : "Booking created.";
-    const userDocs=await models.UserDocument.findAll({
+    const userDocs=await models.UserDocument.findOne({
       where:{
         userId:booking.userId,
       }
     })
-    if(!userDocs || userDocs.length<1){
+    if(!userDocs || !userDocs?.cnicOrPassport || !userDocs?.drivingLicense){
       const newNotification = await models.Notification.create({
                 userId: booking.userId,
                 type: "notify",
