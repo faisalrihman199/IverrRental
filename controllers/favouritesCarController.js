@@ -141,7 +141,9 @@ const getFavouriteCars = async (req, res) => {
             carObj.locationInfo = [];
           }
         }
-    
+        if (typeof carObj.paymentAccepted === 'string') {
+          carObj.paymentAccepted=JSON.parse(carObj.paymentAccepted)
+        }
         // Parse car documents
         if (c.CarDocument) {
           const doc = c.CarDocument;
