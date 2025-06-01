@@ -5,6 +5,8 @@ var auth = require('../middleware/authMiddleware');
 const controllers = require("../controllers");
 const upload = require("../middleware/multerConfig");
 const uploader = upload();
+const makeVisitor = require("../middleware/visitor");
+
 
 // Save or Update FAQ (if id is provided, update)
 router.post("/save", auth, uploader.fields([
@@ -16,7 +18,7 @@ router.post("/save", auth, uploader.fields([
 
 // Get All FAQs or by ID or Status
 router.get("/", auth, controllers.booking.getBookings);
-router.get("/service_fee", controllers.auth.serviceFee);
+router.get("/service_fee",makeVisitor, controllers.auth.serviceFee);
 router.get("/coming", auth, controllers.booking.getComingBookings);
 
 // Delete FAQ

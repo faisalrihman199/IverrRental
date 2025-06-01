@@ -24,6 +24,7 @@ const Calendar = require('./calender');
 const BookingDocument = require('./bookingDocument');
 const Conversation = require('./conversation');
 const Message = require('./message');
+const ServiceFee = require('./serviceFee');
 
 const models = {
     User,
@@ -47,7 +48,8 @@ const models = {
     Calendar,
     BookingDocument,
     Conversation,
-    Message
+    Message,
+    ServiceFee
 };
 
 // Define relationships

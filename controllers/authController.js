@@ -66,7 +66,7 @@ const authController = {
         message: "Login successful",
         data: {
           role: user.role,
-          id:user.id,
+          id: user.id,
           token
         }
       });
@@ -350,8 +350,38 @@ const authController = {
     }
   },
   serviceFee: async (req, res) => {
-    return res.status(200).json({ status: true, data: "5%" });
+    try {
+      const { fee } = req.query;
+      const user=req.user;
+      if(fee && user?.role!=='admin'){
+        return res
+        .status(403)
+        .json({ success: false, message: "You are not allowed to update service fee." });
+      }
+      
+
+      const existing = await models.ServiceFee.findOne();
+
+      if (fee) {
+        existing
+          ? await existing.update({ fee })
+          : await models.ServiceFee.create({ fee });
+      }
+
+      const current = existing || await models.ServiceFee.findOne();
+
+      return res.status(200).json({
+        success: true,
+        data: current?.fee ? `${current.fee}%` : "0%",
+      });
+
+    } catch (error) {
+      console.error("ServiceFee error:", error);
+      return res.status(500).json({ status: false, message: "Something went wrong" });
+    }
   },
+
+
 
   getNonAdminUsers: async (req, res) => {
     try {

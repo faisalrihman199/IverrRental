@@ -294,8 +294,6 @@ const getCars = async (req, res) => {
       if (typeof c.paymentAccepted === 'string') {
         c.paymentAccepted=JSON.parse(c.paymentAccepted)
       }
-
-    
       // Clean up
       delete c.Gallery;
       delete c.User;

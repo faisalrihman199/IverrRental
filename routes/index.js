@@ -21,6 +21,7 @@ var favouriteCars = require("./favouritecars");
 var notifications = require("./notifications"); 
 var calender = require("./calender"); 
 var chat = require("./chat"); 
+var captcha = require("./captcha"); 
 
 router.get('/', function(req, res, next) {
   res.send("Iverr Project is running");
@@ -46,5 +47,6 @@ router.use("/favouritecars", favouriteCars);
 router.use("/notifications", notifications); 
 router.use("/calender", calender); 
 router.use("/chat", chat); 
+router.use("/captcha", captcha); 
 
 module.exports = router;

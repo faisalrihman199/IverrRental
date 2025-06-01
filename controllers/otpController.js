@@ -33,10 +33,10 @@ async function sendOTPEmail(email, firstName) {
   const formattedDate = currentDate.toLocaleDateString('en-GB', options);
 
   let transporter = nodemailer.createTransport({
-    // host: 'mail.ivver.ma',
-    // port: 465,
-    // secure: true,
-    service: 'gmail',
+    host: 'mail.ivver.ma',
+    port: 465,
+    secure: true,
+    // service: 'gmail',
 
     auth: {
       user: process.env.GMAIL_USER,
